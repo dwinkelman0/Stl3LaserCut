@@ -33,7 +33,7 @@ Line::Line(const Vec2 &b1, const Vec2 &b2)
     : a_(std::get<1>(b1) - std::get<1>(b2)),
       b_(std::get<0>(b2) - std::get<0>(b1)),
       c_(a_ * std::get<0>(b1) + b_ * std::get<1>(b1)) {
-  float magnitude = abs(Vec2(a_, b_)) * (c_ < 0 ? -1 : 1);
+  float magnitude = abs(Vec2(a_, b_));
   a_ /= magnitude;
   b_ /= magnitude;
   c_ /= magnitude;
@@ -124,6 +124,21 @@ bool BoundedLine::isInBounds(const Vec2 &point) const {
   return isInverted()
              ? !(comparator(point, lower_) && comparator(upper_, point))
              : !(comparator(point, lower_) || comparator(upper_, point));
+}
+
+std::optional<Vec2> BoundedLine::getIntersection(const Line &line) const {
+  std::optional<Vec2> intersection = Line::getIntersection(line);
+  return intersection && isInBounds(*intersection) ? intersection
+                                                   : std::nullopt;
+}
+
+std::optional<Vec2> BoundedLine::getBoundedIntersection(
+    const BoundedLine &line) const {
+  std::optional<Vec2> intersection = Line::getIntersection(line);
+  return intersection && isInBounds(*intersection) &&
+                 line.isInBounds(*intersection)
+             ? intersection
+             : std::nullopt;
 }
 
 BoundedLine::BoundedLine(const DirectedLine &directedLine, const Vec2 &lower,

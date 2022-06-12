@@ -12,7 +12,7 @@ class Line {
  public:
   static std::optional<Line> fromPoints(const Vec2 &b1, const Vec2 &b2);
 
-  std::optional<Vec2> getIntersection(const Line &other) const;
+  virtual std::optional<Vec2> getIntersection(const Line &other) const;
   Line getPerpendicularLineThroughPoint(const Vec2 &point) const;
   Vec2 getDirectionVector() const;
 
@@ -61,6 +61,8 @@ class BoundedLine : public DirectedLine {
 
   bool isInverted() const;
   bool isInBounds(const Vec2 &point) const;
+  std::optional<Vec2> getIntersection(const Line &line) const override;
+  std::optional<Vec2> getBoundedIntersection(const BoundedLine &line) const;
 
  private:
   BoundedLine(const DirectedLine &directedLine, const Vec2 &lower,

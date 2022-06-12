@@ -109,4 +109,24 @@ TEST(Line, InBounds) {
   ASSERT_TRUE(l1.isInBounds({4, 2}));
   ASSERT_TRUE(l1.isInBounds({6, 3}));
 }
+
+TEST(Line, BoundedIntersection) {
+  BoundedLine l0 = *BoundedLine::fromPoints({0, 0}, {4, 2});
+  BoundedLine l1 = *BoundedLine::fromPoints({0, -1}, {1, 0});
+  BoundedLine l2 = *BoundedLine::fromPoints({-1, -1}, {3, 1});
+  BoundedLine l3 = *BoundedLine::fromPoints({0, 0}, {5, 6});
+  ASSERT_FALSE(l0.isInverted());
+  ASSERT_FALSE(l1.isInverted());
+  std::optional<Vec2> i0 = l0.getIntersection(l1);
+  ASSERT_TRUE(i0);
+  ASSERT_FLOAT_EQ(std::get<0>(*i0), 2);
+  ASSERT_FLOAT_EQ(std::get<1>(*i0), 1);
+  ASSERT_FALSE(l1.getIntersection(l0));
+  ASSERT_FALSE(l0.getIntersection(l2));
+  ASSERT_FALSE(l0.getBoundedIntersection(l1));
+  ASSERT_FALSE(l1.getBoundedIntersection(l0));
+  ASSERT_FALSE(l0.getBoundedIntersection(l2));
+  ASSERT_TRUE(l1.getBoundedIntersection(l2));
+  ASSERT_TRUE(l0.getBoundedIntersection(l3));
+}
 }  // namespace stl3lasercut
