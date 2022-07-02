@@ -115,6 +115,8 @@ std::optional<BoundedLine> BoundedLine::fromDirectedLine(
                                   : std::nullopt;
 }
 
+Vec2 BoundedLine::getMidpoint() const { return (upper_ + lower_) / 2; }
+
 bool BoundedLine::isInverted() const {
   return PointComparator(*this)(upper_, lower_);
 }

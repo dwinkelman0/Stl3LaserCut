@@ -4,6 +4,7 @@
 
 #include <stl3lasercut/Util.h>
 
+#include <memory>
 #include <optional>
 #include <variant>
 
@@ -58,6 +59,8 @@ class BoundedLine : public DirectedLine {
   static std::optional<BoundedLine> fromDirectedLine(const DirectedLine &line,
                                                      const Bound &lower,
                                                      const Bound &upper);
+
+  Vec2 getMidpoint() const;
 
   bool isInverted() const;
   bool isInBounds(const Vec2 &point) const;
