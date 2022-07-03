@@ -79,6 +79,12 @@ float angle(const Vec3 vec1, const Vec3 vec2) {
   return mag > 0 ? std::acos(dot(vec1, vec2) / mag) : 0;
 }
 
+Vec2 rotate2D(const Vec2 vec, const float angle) {
+  return {
+      std::cos(angle) * std::get<0>(vec) - std::sin(angle) * std::get<1>(vec),
+      std::sin(angle) * std::get<0>(vec) + std::cos(angle) * std::get<1>(vec)};
+}
+
 Vec3 rotateX(const Vec3 vec, const float angle) {
   return {
       std::get<0>(vec),

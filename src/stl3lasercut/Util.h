@@ -23,6 +23,7 @@ float abs(const Vec2 vec);
 float abs(const Vec3 vec);
 float angle(const Vec2 vec1, const Vec2 vec2);
 float angle(const Vec3 vec1, const Vec3 vec2);
+Vec2 rotate2D(const Vec2 vec, const float angle);
 Vec3 rotateX(const Vec3 vec, const float angle);
 Vec3 rotateY(const Vec3 vec, const float angle);
 Vec3 rotateZ(const Vec3 vec, const float angle);
