@@ -5,6 +5,12 @@
 #include <cmath>
 
 namespace stl3lasercut {
+namespace unit3 {
+const Vec3 x(1, 0, 0);
+const Vec3 y(0, 1, 0);
+const Vec3 z(0, 0, 1);
+}  // namespace unit3
+
 Vec3 operator-(const Vec3 vec) {
   return {-std::get<0>(vec), -std::get<1>(vec), -std::get<2>(vec)};
 }
