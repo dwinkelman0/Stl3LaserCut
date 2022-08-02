@@ -17,7 +17,7 @@ enable_testing ()
 
 FetchContent_Declare (algo
     GIT_REPOSITORY https://github.com/dwinkelman0/Algo
-    GIT_TAG v0.3
+    GIT_TAG v0.4
     CMAKE_ARGS -D DISABLE_TESTS=1
 )
 FetchContent_MakeAvailable (algo)
