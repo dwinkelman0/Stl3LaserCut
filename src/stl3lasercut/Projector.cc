@@ -3,6 +3,7 @@
 #include "Projector.h"
 
 #include <cmath>
+#include <numbers>
 #include <tuple>
 
 namespace stl3lasercut {
@@ -22,9 +23,20 @@ Vec2 Projector2D::restore(const Vec2 &point) const {
 Projector3D::Projector3D(const Vec3 &normal, const Vec3 &point)
     : angleZ_(angle(cross(normal, unit3::z), unit3::x) *
               (dot(normal, unit3::x) > 0 ? 1 : -1)),
-      angleX_(angle(rotateZ(normal, angleZ_), unit3::z) *
+      angleX_(angle(normal, unit3::z) *
               (dot(rotateZ(normal, angleZ_), unit3::y) > 0 ? 1 : -1)),
-      offsetZ_(std::get<2>(rotateX(rotateZ(point, angleZ_), angleX_))) {}
+      offsetZ_(std::get<2>(rotateX(rotateZ(point, angleZ_), angleX_))) {
+  const float threshold = 1e-6;
+  float totalAngle = angle(rotateZ(normal, angleZ_), unit3::y) +
+                     angle(rotateZ(normal, angleZ_), unit3::z);
+  assert(totalAngle < threshold ||
+         totalAngle - std::numbers::pi / 2 < threshold ||
+         totalAngle - std::numbers::pi < threshold ||
+         totalAngle - std::numbers::pi * 3 / 2 < threshold);
+  assert(angle(rotateX(rotateZ(normal, angleZ_), angleX_), unit3::z) <
+         threshold);
+  assert(offsetZ_ - abs(point) < threshold);
+}
 
 Vec2 Projector3D::normalize(const Vec3 &point) const {
   Vec3 rotated = rotateZ(rotateX(rotateZ(point, angleZ_), angleX_), -angleZ_);

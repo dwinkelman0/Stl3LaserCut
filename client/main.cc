@@ -12,6 +12,8 @@ int main() {
     mesh << *triangle;
     triangle = input.readTriangle();
   }
-  mesh.debug();
+  auto [vertices, edges] = mesh.getCharacteristic();
+  std::cout << vertices << " vertices, " << edges / 2 << " edges, "
+            << mesh.getPlanes().size() << " planes" << std::endl;
   return 0;
 }

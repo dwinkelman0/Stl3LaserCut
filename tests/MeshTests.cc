@@ -24,7 +24,7 @@ std::ostream &operator<<(std::ostream &os, const MeshTestCase &mesh) {
   return os;
 }
 
-class Tests : public testing::TestWithParam<MeshTestCase> {
+class MeshTests : public testing::TestWithParam<MeshTestCase> {
  public:
   void SetUp() override {
     std::ofstream outputFile(GetParam().name + ".stl");
@@ -39,17 +39,13 @@ class Tests : public testing::TestWithParam<MeshTestCase> {
   Mesh mesh_;
 };
 
-TEST_P(Tests, VertexEdgeCount) {
+TEST_P(MeshTests, VertexEdgeCount) {
   ASSERT_EQ(mesh_.getCharacteristic().first, GetParam().characteristic.first);
   ASSERT_EQ(mesh_.getCharacteristic().second,
             GetParam().characteristic.second * 2);
   std::map<std::pair<uint32_t, uint32_t>, uint32_t> counts;
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
-    counts
-        .emplace(std::pair<uint32_t, uint32_t>(plane->getVertices().getCount(),
-                                               plane->getEdges().getCount()),
-                 0)
-        .first->second++;
+    counts.emplace(plane->getCharacteristic(), 0).first->second++;
   }
   for (const auto &[pair, count] : counts) {
     auto it = GetParam().faces.find(pair);
@@ -60,28 +56,32 @@ TEST_P(Tests, VertexEdgeCount) {
   ASSERT_EQ(counts.size(), GetParam().faces.size());
 }
 
-TEST_P(Tests, Internals) {
+TEST_P(MeshTests, Internals) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
-    for (const auto vertex : plane->getVertices()) {
-      ASSERT_EQ(plane->getEdgesFromVertex(vertex).getCount(),
-                plane->getEdgesToVertex(vertex).getCount());
-      ASSERT_GE(vertex.getValue().getVertices().getCount(),
-                plane->getEdgesFromVertex(vertex).getCount() * 2);
+    for (const auto vertex : plane->graph_.getVertices()) {
+      ASSERT_EQ(plane->graph_.getEdgesFromVertex(vertex).getCount(),
+                plane->graph_.getEdgesToVertex(vertex).getCount());
+      ASSERT_GE(vertex.getValue().vertexConnectivity.getVertices().getCount(),
+                plane->graph_.getEdgesFromVertex(vertex).getCount() * 2);
+    }
+    for (const auto &edge : plane->graph_.getEdges()) {
+      ASSERT_TRUE(edge.getValue().otherPlane);
     }
   }
 }
 
-TEST_P(Tests, Projectors) {
+TEST_P(MeshTests, Projectors) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
-    for (const auto vertex : plane->getVertices()) {
+    for (const auto vertex : plane->graph_.getVertices()) {
       Vec3 point = mesh_.getVertexVector(vertex.getIndex());
       testPoint(projector.restore(projector.normalize(point)), point);
+      testPoint(projector.restore(vertex.getValue().mappedPoint), point);
     }
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    Mesh, Tests,
+    Mesh, MeshTests,
     testing::Values(MeshTestCase{.name = "tetrahedron",
                                  .triangles = samples::tetrahedron,
                                  .characteristic = {4, 6},
