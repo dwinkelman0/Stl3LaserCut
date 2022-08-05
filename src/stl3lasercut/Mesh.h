@@ -11,7 +11,10 @@
 namespace stl3lasercut {
 
 class Mesh {
-  using PlaneGraph = algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;
+  using VertexConnectivityGraph =
+      algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;
+  using PlaneGraph =
+      algo::DirectedGraph<algo::Unit, algo::Unit, VertexConnectivityGraph>;
   using MeshGraph =
       algo::DirectedGraph<algo::Unit, std::shared_ptr<PlaneGraph>, algo::Unit>;
 
@@ -19,12 +22,13 @@ class Mesh {
   Mesh &operator<<(const StlTriangle &triangle);
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
   const std::map<Projector3D, std::shared_ptr<PlaneGraph>> &getPlanes() const;
+  Vec3 getVertexVector(const uint32_t index) const;
 
   void debug();
 
  protected:
   void addEdge(const std::shared_ptr<PlaneGraph> &plane, const uint32_t v0,
-               const uint32_t v1);
+               const uint32_t v1, const uint32_t v2);
 
  private:
   algo::Lookup<Vec3> vertices_;

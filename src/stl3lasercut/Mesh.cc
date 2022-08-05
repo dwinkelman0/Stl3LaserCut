@@ -17,9 +17,9 @@ Mesh &Mesh::operator<<(const StlTriangle &triangle) {
   uint32_t v2 = vertices_(std::get<2>(triangle.getVertices()));
 
   // Add each edge
-  addEdge(plane, v0, v1);
-  addEdge(plane, v1, v2);
-  addEdge(plane, v2, v0);
+  addEdge(plane, v0, v1, v2);
+  addEdge(plane, v1, v2, v0);
+  addEdge(plane, v2, v0, v1);
 
   return *this;
 }
@@ -31,6 +31,10 @@ std::pair<uint32_t, uint32_t> Mesh::getCharacteristic() const {
 const std::map<Projector3D, std::shared_ptr<Mesh::PlaneGraph>>
     &Mesh::getPlanes() const {
   return planes_;
+}
+
+Vec3 Mesh::getVertexVector(const uint32_t index) const {
+  return vertices_(index);
 }
 
 void Mesh::debug() {
@@ -53,12 +57,15 @@ void Mesh::debug() {
 }
 
 void Mesh::addEdge(const std::shared_ptr<PlaneGraph> &plane, const uint32_t v0,
-                   const uint32_t v1) {
+                   const uint32_t v1, const uint32_t v2) {
   mesh_.emplaceVertex(v0);
   mesh_.emplaceVertex(v1);
   mesh_.emplaceEdge(v0, v1).first->getValue() = plane;
   plane->emplaceVertex(v0);
-  plane->emplaceVertex(v1);
+  PlaneGraph::VertexIterator vertexIt = plane->emplaceVertex(v1).first;
+  vertexIt->getValue().emplaceVertex(v0);
+  vertexIt->getValue().emplaceVertex(v2);
+  vertexIt->getValue().emplaceEdge(v0, v2);
   auto existingEdge = plane->getEdge(v1, v0);
   if (existingEdge) {
     plane->eraseEdge(*existingEdge);

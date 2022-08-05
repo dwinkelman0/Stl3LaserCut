@@ -6,6 +6,7 @@
 #include <map>
 
 #include "SampleGeometry.h"
+#include "Util.h"
 
 namespace stl3lasercut {
 struct MeshTestCase {
@@ -23,7 +24,7 @@ std::ostream &operator<<(std::ostream &os, const MeshTestCase &mesh) {
   return os;
 }
 
-class MeshTest : public testing::TestWithParam<MeshTestCase> {
+class Tests : public testing::TestWithParam<MeshTestCase> {
  public:
   void SetUp() override {
     std::ofstream outputFile(GetParam().name + ".stl");
@@ -38,7 +39,7 @@ class MeshTest : public testing::TestWithParam<MeshTestCase> {
   Mesh mesh_;
 };
 
-TEST_P(MeshTest, VertexEdgeCount) {
+TEST_P(Tests, VertexEdgeCount) {
   ASSERT_EQ(mesh_.getCharacteristic().first, GetParam().characteristic.first);
   ASSERT_EQ(mesh_.getCharacteristic().second,
             GetParam().characteristic.second * 2);
@@ -59,14 +60,39 @@ TEST_P(MeshTest, VertexEdgeCount) {
   ASSERT_EQ(counts.size(), GetParam().faces.size());
 }
 
+TEST_P(Tests, Internals) {
+  for (const auto &[projector, plane] : mesh_.getPlanes()) {
+    for (const auto vertex : plane->getVertices()) {
+      ASSERT_EQ(plane->getEdgesFromVertex(vertex).getCount(),
+                plane->getEdgesToVertex(vertex).getCount());
+      ASSERT_GE(vertex.getValue().getVertices().getCount(),
+                plane->getEdgesFromVertex(vertex).getCount() * 2);
+    }
+  }
+}
+
+TEST_P(Tests, Projectors) {
+  for (const auto &[projector, plane] : mesh_.getPlanes()) {
+    for (const auto vertex : plane->getVertices()) {
+      Vec3 point = mesh_.getVertexVector(vertex.getIndex());
+      testPoint(projector.restore(projector.normalize(point)), point);
+    }
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(
-    Mesh, MeshTest,
-    testing::Values(
-        MeshTestCase{
-            "tetrahedron", samples::tetrahedron, {4, 6}, {{{3, 3}, 4}}},
-        MeshTestCase{"octahedron", samples::octahedron, {6, 12}, {{{3, 3}, 8}}},
-        MeshTestCase{"bowtie",
-                     samples::bowtie,
-                     {7, 13},
-                     {{{3, 3}, 4}, {{4, 4}, 2}, {{5, 6}, 1}}}));
+    Mesh, Tests,
+    testing::Values(MeshTestCase{.name = "tetrahedron",
+                                 .triangles = samples::tetrahedron,
+                                 .characteristic = {4, 6},
+                                 .faces = {{{3, 3}, 4}}},
+                    MeshTestCase{.name = "octahedron",
+                                 .triangles = samples::octahedron,
+                                 .characteristic = {6, 12},
+                                 .faces = {{{3, 3}, 8}}},
+                    MeshTestCase{
+                        .name = "bowtie",
+                        .triangles = samples::bowtie,
+                        .characteristic = {7, 13},
+                        .faces = {{{3, 3}, 4}, {{4, 4}, 2}, {{5, 6}, 1}}}));
 }  // namespace stl3lasercut
