@@ -3,14 +3,23 @@
 #include "Mesh.h"
 
 namespace stl3lasercut {
-Plane::Plane(const Vec3 &normal) : normal_(normal) {}
 
-bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
-                    const uint32_t v0, const uint32_t v1, const uint32_t v2,
+bool Plane::EdgeCoordinate::operator<(const EdgeCoordinate &other) const {
+  return std::tie(id, offsetId) < std::tie(other.id, other.offsetId);
+}
+
+Plane::Plane(const uint32_t id, const Vec3 &normal)
+    : id_(id),
+      normal_(normal),
+      nullOffsetFunction_(offsetFunctions_(nullOffsetFunctionPtr_)),
+      edgeIdCounter_(0) {}
+
+bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
+                    const uint32_t v2,
                     const std::shared_ptr<Plane> &adjacentPlane) {
   graph_.emplaceVertex(v0);
   Graph::VertexIterator vertexIt = graph_.emplaceVertex(v1).first;
-  vertexIt->getValue().mappedPoint = projector.normalize(point);
+  vertexIt->getValue().mappedPoint = point;
   vertexIt->getValue().vertexConnectivity.emplaceVertex(v0);
   vertexIt->getValue().vertexConnectivity.emplaceVertex(v2);
   vertexIt->getValue().vertexConnectivity.emplaceEdge(v0, v2);
@@ -20,6 +29,8 @@ bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
     return true;
   } else {
     Graph::EdgeIterator edgeIt = graph_.emplaceEdge(v0, v1).first;
+    edgeIt->getValue().edgeCoords.insert(EdgeCoordinate{
+        .id = edgeIdCounter_++, .offsetId = nullOffsetFunction_});
     if (adjacentPlane) {
       edgeIt->getValue().otherPlane = adjacentPlane;
       std::optional<Graph::EdgeIterator> otherEdgeIt =
@@ -33,15 +44,31 @@ bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
   }
 }
 
+bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
+                    const uint32_t v0, const uint32_t v1, const uint32_t v2,
+                    const std::shared_ptr<Plane> &adjacentPlane) {
+  return addEdge(projector.normalize(point), v0, v1, v2, adjacentPlane);
+}
+
+uint32_t Plane::getId() const { return id_; }
+
 std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {
   return {graph_.getVertices().getCount(), graph_.getEdges().getCount()};
 }
 
+float Plane::nullOffsetFunction(const Vec3 &a, const Vec3 &b) { return 0; }
+
+std::shared_ptr<Plane::OffsetFunction> Plane::nullOffsetFunctionPtr_ =
+    std::make_shared<OffsetFunction>(Plane::nullOffsetFunction);
+
+Mesh::Mesh() : planeIdCounter_(0) {}
+
 Mesh &Mesh::operator<<(const StlTriangle &triangle) {
   // Check whether the associated projector is already present
   Projector3D projector = triangle.getProjector();
-  const auto &[it, success] =
-      planes_.emplace(projector, std::make_shared<Plane>(triangle.getNormal()));
+  const auto &[it, success] = planes_.emplace(
+      projector,
+      std::make_shared<Plane>(++planeIdCounter_, triangle.getNormal()));
   projector = it->first;
   std::shared_ptr<Plane> plane = it->second;
 

@@ -58,6 +58,7 @@ TEST_P(MeshTests, VertexEdgeCount) {
 
 TEST_P(MeshTests, Internals) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
+    ASSERT_GT(plane->getId(), 0);
     for (const auto vertex : plane->graph_.getVertices()) {
       ASSERT_EQ(plane->graph_.getEdgesFromVertex(vertex).getCount(),
                 plane->graph_.getEdgesToVertex(vertex).getCount());
