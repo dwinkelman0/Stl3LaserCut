@@ -50,6 +50,31 @@ bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
   return addEdge(projector.normalize(point), v0, v1, v2, adjacentPlane);
 }
 
+void Plane::finalizeBase() {
+  for (Graph::Vertex &graphVertex : graph_.getVertices()) {
+    std::vector<uint32_t> toErase;
+    VertexConnectivityGraph &graph = graphVertex.getValue().vertexConnectivity;
+    for (VertexConnectivityGraph::Vertex &vertex : graph.getVertices()) {
+      if (graph.getEdgesToVertex(vertex).getCount() == 1 &&
+          graph.getEdgesFromVertex(vertex).getCount() == 1) {
+        toErase.emplace_back(vertex.getIndex());
+      }
+    }
+    for (uint32_t index : toErase) {
+      graph.emplaceEdge(graph.getEdgesToVertex(index).begin()->getSource(),
+                        graph.getEdgesFromVertex(index).begin()->getDest());
+      graph.eraseVertex(index);
+    }
+  }
+  for (Graph::Edge &edge : graph_.getEdges()) {
+    std::optional<BoundedLine> line = BoundedLine::fromPoints(
+        (*graph_.getVertex(edge.getSource()))->getValue().mappedPoint,
+        (*graph_.getVertex(edge.getDest()))->getValue().mappedPoint);
+    assert(line);
+    edge.getValue().line = *line;
+  }
+}
+
 uint32_t Plane::getId() const { return id_; }
 
 std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {

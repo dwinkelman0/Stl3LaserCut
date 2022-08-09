@@ -33,6 +33,9 @@ class MeshTests : public testing::TestWithParam<MeshTestCase> {
       mesh_ << triangle;
       output << triangle;
     }
+    for (const auto &[projector, plane] : mesh_.getPlanes()) {
+      plane->finalizeBase();
+    }
   }
 
  protected:
@@ -64,9 +67,15 @@ TEST_P(MeshTests, Internals) {
                 plane->graph_.getEdgesToVertex(vertex).getCount());
       ASSERT_GE(vertex.getValue().vertexConnectivity.getVertices().getCount(),
                 plane->graph_.getEdgesFromVertex(vertex).getCount() * 2);
+      for (const Plane::VertexConnectivityGraph &connectivityGraph :
+           vertex.getValue().vertexConnectivity.getConnectedComponents()) {
+        ASSERT_EQ(connectivityGraph.getEdges().getCount(), 1);
+        ASSERT_EQ(connectivityGraph.getVertices().getCount(), 2);
+      }
     }
     for (const auto &edge : plane->graph_.getEdges()) {
       ASSERT_TRUE(edge.getValue().otherPlane);
+      ASSERT_EQ(edge.getValue().edgeCoords.size(), 1);
     }
   }
 }

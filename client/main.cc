@@ -12,6 +12,9 @@ int main() {
     mesh << *triangle;
     triangle = input.readTriangle();
   }
+  for (const auto &[projector, plane] : mesh.getPlanes()) {
+    plane->finalizeBase();
+  }
   auto [vertices, edges] = mesh.getCharacteristic();
   std::cout << vertices << " vertices, " << edges / 2 << " edges, "
             << mesh.getPlanes().size() << " planes" << std::endl;

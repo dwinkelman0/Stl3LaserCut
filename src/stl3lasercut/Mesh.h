@@ -32,6 +32,7 @@ class Plane : public std::enable_shared_from_this<Plane> {
   struct EdgeData {
     std::shared_ptr<Plane> otherPlane;
     std::set<EdgeCoordinate> edgeCoords;
+    BoundedLine line;
   };
 
   struct VertexData {
@@ -48,6 +49,7 @@ class Plane : public std::enable_shared_from_this<Plane> {
   bool addEdge(const Projector3D &projector, const Vec3 &point,
                const uint32_t v0, const uint32_t v1, const uint32_t v2,
                const std::shared_ptr<Plane> &adjacentPlane);
+  void finalizeBase();
 
   uint32_t getId() const;
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
