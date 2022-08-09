@@ -19,7 +19,8 @@ class Plane : public std::enable_shared_from_this<Plane> {
 
   using VertexConnectivityGraph =
       algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;
-  using OffsetFunction = std::function<float(const Vec3 &, const Vec3 &)>;
+  using OffsetFunction = std::function<float(const std::shared_ptr<Plane> &,
+                                             const std::shared_ptr<Plane> &)>;
 
   class EdgeCoordinate {
    public:
@@ -50,12 +51,28 @@ class Plane : public std::enable_shared_from_this<Plane> {
                const uint32_t v0, const uint32_t v1, const uint32_t v2,
                const std::shared_ptr<Plane> &adjacentPlane);
   void finalizeBase();
+  void addOffsetLayer(const std::shared_ptr<OffsetFunction> &offsetFunction,
+                      const std::shared_ptr<OffsetFunction>
+                          &baseOffsetFunction = nullOffsetFunctionPtr_);
 
   uint32_t getId() const;
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
 
  private:
-  static float nullOffsetFunction(const Vec3 &a, const Vec3 &b);
+  static bool edgeMatchesOffset(const Graph::ConstEdge &edge,
+                                const uint32_t offset);
+  static bool anyEdgeMatchesOffset(
+      const Graph::Range<Graph::EdgeConstIterator> &range,
+      const uint32_t offset);
+  bool vertexMatchesOffset(const Graph::ConstVertex &vertex,
+                           const uint32_t offset) const;
+  uint32_t getOutermostConnectedVertex(
+      const Graph::ConstVertex &vertex, const uint32_t start,
+      const uint32_t offsetFunctionIndex) const;
+  Graph::VertexIterator makeNewVertex();
+
+  static float nullOffsetFunction(const std::shared_ptr<Plane> &a,
+                                  const std::shared_ptr<Plane> &b);
   static std::shared_ptr<OffsetFunction> nullOffsetFunctionPtr_;
 
  private:
@@ -65,7 +82,10 @@ class Plane : public std::enable_shared_from_this<Plane> {
   algo::Lookup<std::shared_ptr<OffsetFunction>> offsetFunctions_;
   uint32_t nullOffsetFunction_;
   uint32_t edgeIdCounter_;
+  uint32_t vertexIdCounter_;
   std::map<std::pair<uint32_t, uint32_t>, BoundedLine> lineMap_;
+  std::map<Vec2, uint32_t> vertexMap_;
+  std::map<uint32_t, std::set<uint32_t>> offsetFunctionVertices_;
 };
 
 class Mesh {

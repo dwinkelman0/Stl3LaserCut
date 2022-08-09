@@ -47,6 +47,7 @@ class DirectedLine : public Line {
   static std::optional<DirectedLine> fromPoints(const Vec2 &b1, const Vec2 &b2);
 
   DirectedLine getParallelLineWithOffset(const float offset) const;
+  float getAngle(const DirectedLine &other) const;
 
  private:
   DirectedLine(const Line &line);

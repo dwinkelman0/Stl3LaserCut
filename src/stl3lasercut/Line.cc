@@ -75,6 +75,11 @@ DirectedLine DirectedLine::getParallelLineWithOffset(const float offset) const {
   return DirectedLine(a_, b_, c_ + offset * abs(Vec2(a_, b_)));
 }
 
+float DirectedLine::getAngle(const DirectedLine &other) const {
+  float crossProduct = cross({a_, b_}, {other.a_, other.b_});
+  return angle({a_, b_}, {other.a_, other.b_}) * (crossProduct > 0 ? 1 : -1);
+}
+
 DirectedLine::DirectedLine(const Line &line) : Line(line) {}
 
 DirectedLine::DirectedLine(const float a, const float b, const float c)

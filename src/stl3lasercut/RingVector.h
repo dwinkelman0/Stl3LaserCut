@@ -70,6 +70,38 @@ class RingVector {
     return output;
   }
 
+  void foreachPair(
+      const std::function<void(const T &, const T &)> &callback) const {
+    for (uint32_t i = 0; i < getSize(); ++i) {
+      callback(this->operator[](i), this->operator[](i + 1));
+    }
+  }
+
+  template <typename T2>
+  RingVector<T2> foreachPair(
+      const std::function<T2(const T &, const T &)> &callback) const {
+    std::vector<T2> output;
+    for (uint32_t i = 0; i < getSize(); ++i) {
+      output.push_back(callback(this->operator[](i), this->operator[](i + 1)));
+    }
+    return RingVector<T2>(output);
+  }
+
+  template <typename T2>
+  RingVector<T2> foreachPair(
+      const std::function<std::optional<T2>(const T &, const T &)> &callback)
+      const {
+    std::vector<T2> output;
+    for (uint32_t i = 0; i < getSize(); ++i) {
+      std::optional<T2> result =
+          callback(this->operator[](i), this->operator[](i + 1));
+      if (result) {
+        output.push_back(*result);
+      }
+    }
+    return RingVector<T2>(output);
+  }
+
   template <typename T2>
   void zip(const RingVector<T2> &other,
            const std::function<void(const T &, const T2 &)> &callback,

@@ -62,6 +62,10 @@ TEST_P(MeshTests, VertexEdgeCount) {
 TEST_P(MeshTests, Internals) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
     ASSERT_GT(plane->getId(), 0);
+    ASSERT_EQ(plane->vertexMap_.size(), plane->graph_.getVertices().getCount());
+    ASSERT_EQ(plane->offsetFunctionVertices_.find(plane->nullOffsetFunction_)
+                  ->second.size(),
+              plane->graph_.getVertices().getCount());
     for (const auto vertex : plane->graph_.getVertices()) {
       ASSERT_EQ(plane->graph_.getEdgesFromVertex(vertex).getCount(),
                 plane->graph_.getEdgesToVertex(vertex).getCount());
@@ -87,6 +91,21 @@ TEST_P(MeshTests, Projectors) {
       testPoint(projector.restore(projector.normalize(point)), point);
       testPoint(projector.restore(vertex.getValue().mappedPoint), point);
     }
+  }
+}
+
+static float dummyOffsetFunction(const std::shared_ptr<Plane> &a,
+                                 const std::shared_ptr<Plane> &b) {
+  return -0.2;
+}
+static auto dummyOffsetFunctionPtr = std::make_shared<std::function<float(
+    const std::shared_ptr<Plane> &, const std::shared_ptr<Plane> &)>>(
+    dummyOffsetFunction);
+
+TEST_P(MeshTests, PlaneOffsetFunction) {
+  for (const auto &[projector, plane] : mesh_.getPlanes()) {
+    std::cout << "new plane" << std::endl;
+    plane->addOffsetLayer(dummyOffsetFunctionPtr);
   }
 }
 

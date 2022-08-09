@@ -4,6 +4,7 @@
 #include <stl3lasercut/Line.h>
 
 #include <cmath>
+#include <numbers>
 
 namespace stl3lasercut {
 static void testIntersection(const Line &a, const Line &b, const Vec2 &value) {
@@ -58,6 +59,17 @@ TEST(Line, ParallelFromOffset) {
   DirectedLine testLine = *DirectedLine::fromPoints({-1, 0}, {-1, 2});
   testIntersection(l0, testLine, {-1, 2});
   testIntersection(l1, testLine, {-1, -3});
+}
+
+TEST(Line, Angle) {
+  DirectedLine l0 = *DirectedLine::fromPoints({0, 0}, {0, 1});
+  DirectedLine l1 = *DirectedLine::fromPoints({0, 1}, {-1, 2});
+  DirectedLine l2 = *DirectedLine::fromPoints({0, 1}, {1, 2});
+  DirectedLine l3 = *DirectedLine::fromPoints({0, 1}, {1, 0});
+  ASSERT_FLOAT_EQ(l0.getAngle(l1), std::numbers::pi / 4);
+  ASSERT_FLOAT_EQ(l0.getAngle(l2), -std::numbers::pi / 4);
+  ASSERT_FLOAT_EQ(l0.getAngle(l3), -std::numbers::pi * 3 / 4);
+  ASSERT_FLOAT_EQ(l1.getAngle(l0), -std::numbers::pi / 4);
 }
 
 TEST(Line, BoundedCreation) {
