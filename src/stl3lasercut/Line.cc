@@ -3,6 +3,8 @@
 #include "Line.h"
 
 namespace stl3lasercut {
+Line::Line() : a_(0), b_(0), c_(0) {}
+
 std::optional<Line> Line::fromPoints(const Vec2 &b1, const Vec2 &b2) {
   return b1 == b2 ? std::nullopt : std::optional<Line>(Line(b1, b2));
 }
@@ -27,6 +29,19 @@ Line Line::getPerpendicularLineThroughPoint(const Vec2 &point) const {
 
 Vec2 Line::getDirectionVector() const { return Vec2(a_, b_); }
 
+std::ostream &operator<<(std::ostream &os, const Line &line) {
+  if (line.a_ != 0 && line.b_ != 0) {
+    os << line.a_ << "x + " << line.b_ << "y = " << line.c_;
+  } else if (line.a_ != 0) {
+    os << line.a_ << "x = " << line.c_;
+  } else if (line.b_ != 0) {
+    os << line.b_ << "y = " << line.c_;
+  } else {
+    os << "null line";
+  }
+  return os;
+}
+
 Line::Line(const float a, const float b, const float c) : a_(a), b_(b), c_(c) {}
 
 Line::Line(const Vec2 &b1, const Vec2 &b2)
@@ -38,6 +53,8 @@ Line::Line(const Vec2 &b1, const Vec2 &b2)
   b_ /= magnitude;
   c_ /= magnitude;
 }
+
+DirectedLine::DirectedLine() : Line() {}
 
 DirectedLine::PointComparator::PointComparator(const DirectedLine &line)
     : direction_(line.getDirectionVector()) {}
@@ -69,6 +86,8 @@ std::optional<BoundedLine> BoundedLine::fromPoints(const Vec2 &lower,
   return output ? std::optional<BoundedLine>(BoundedLine(*output, lower, upper))
                 : std::nullopt;
 }
+
+BoundedLine::BoundedLine() : DirectedLine(), lower_(0, 0), upper_(0, 0) {}
 
 namespace {
 struct BoundVisitor {
@@ -141,6 +160,12 @@ std::optional<Vec2> BoundedLine::getBoundedIntersection(
                  line.isInBounds(*intersection)
              ? intersection
              : std::nullopt;
+}
+
+std::ostream &operator<<(std::ostream &os, const BoundedLine &line) {
+  os << dynamic_cast<const Line &>(line) << ", " << line.lower_
+     << " <= (x, y) <= " << line.upper_;
+  return os;
 }
 
 BoundedLine::BoundedLine(const DirectedLine &directedLine, const Vec2 &lower,

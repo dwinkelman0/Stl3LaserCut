@@ -11,11 +11,15 @@
 namespace stl3lasercut {
 class Line {
  public:
+  Line();
+
   static std::optional<Line> fromPoints(const Vec2 &b1, const Vec2 &b2);
 
   virtual std::optional<Vec2> getIntersection(const Line &other) const;
   Line getPerpendicularLineThroughPoint(const Vec2 &point) const;
   Vec2 getDirectionVector() const;
+
+  friend std::ostream &operator<<(std::ostream &os, const Line &line);
 
  protected:
   Line(const float a, const float b, const float c);
@@ -38,6 +42,8 @@ class DirectedLine : public Line {
     Vec2 direction_;
   };
 
+  DirectedLine();
+
   static std::optional<DirectedLine> fromPoints(const Vec2 &b1, const Vec2 &b2);
 
   DirectedLine getParallelLineWithOffset(const float offset) const;
@@ -50,6 +56,8 @@ class DirectedLine : public Line {
 class BoundedLine : public DirectedLine {
  public:
   using Bound = std::variant<Vec2, Line>;
+
+  BoundedLine();
 
   static std::optional<BoundedLine> fromPoints(const Vec2 &lower,
                                                const Vec2 &upper);
@@ -66,6 +74,8 @@ class BoundedLine : public DirectedLine {
   bool isInBounds(const Vec2 &point) const;
   std::optional<Vec2> getIntersection(const Line &line) const override;
   std::optional<Vec2> getBoundedIntersection(const BoundedLine &line) const;
+
+  friend std::ostream &operator<<(std::ostream &os, const BoundedLine &line);
 
  private:
   BoundedLine(const DirectedLine &directedLine, const Vec2 &lower,
