@@ -13,13 +13,15 @@ std::optional<Vec2> Line::getIntersection(const Line &other) const {
   if (std::abs(cross(getDirectionVector(), other.getDirectionVector())) <
       1e-6) {
     return std::nullopt;
-  } else if (a_ != 0) {
+  } else if (std::abs(a_) > 1e-6) {
     float ratio = other.a_ / a_;
     float y = (other.c_ - ratio * c_) / (other.b_ - ratio * b_);
     float x = (c_ - b_ * y) / a_;
     return std::optional<Vec2>({x, y});
-  } else {
+  } else if (std::abs(other.a_) > 1e-6) {
     return other.getIntersection(*this);
+  } else {
+    return std::nullopt;
   }
 }
 
@@ -73,6 +75,12 @@ std::optional<DirectedLine> DirectedLine::fromPoints(const Vec2 &b1,
 
 DirectedLine DirectedLine::getParallelLineWithOffset(const float offset) const {
   return DirectedLine(a_, b_, c_ + offset * abs(Vec2(a_, b_)));
+}
+
+DirectedLine DirectedLine::getParallelLineThroughPoint(
+    const Vec2 &point) const {
+  return DirectedLine(a_, b_,
+                      a_ * std::get<0>(point) + b_ * std::get<1>(point));
 }
 
 float DirectedLine::getAngle(const DirectedLine &other) const {
@@ -152,12 +160,6 @@ bool BoundedLine::isInBounds(const Vec2 &point) const {
              : !(comparator(point, lower_) || comparator(upper_, point));
 }
 
-std::optional<Vec2> BoundedLine::getIntersection(const Line &line) const {
-  std::optional<Vec2> intersection = Line::getIntersection(line);
-  return intersection && isInBounds(*intersection) ? intersection
-                                                   : std::nullopt;
-}
-
 std::optional<Vec2> BoundedLine::getBoundedIntersection(
     const BoundedLine &line) const {
   std::optional<Vec2> intersection = Line::getIntersection(line);
@@ -165,6 +167,13 @@ std::optional<Vec2> BoundedLine::getBoundedIntersection(
                  line.isInBounds(*intersection)
              ? intersection
              : std::nullopt;
+}
+
+std::optional<Vec2> BoundedLine::getPartiallyBoundedIntersection(
+    const Line &line) const {
+  std::optional<Vec2> intersection = Line::getIntersection(line);
+  return intersection && isInBounds(*intersection) ? intersection
+                                                   : std::nullopt;
 }
 
 std::ostream &operator<<(std::ostream &os, const BoundedLine &line) {

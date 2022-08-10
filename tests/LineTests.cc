@@ -61,6 +61,13 @@ TEST(Line, ParallelFromOffset) {
   testIntersection(l1, testLine, {-1, -3});
 }
 
+TEST(Line, ParallelThroughPoint) {
+  DirectedLine baseLine = *DirectedLine::fromPoints({0, 0}, {2, 1});
+  DirectedLine l0 = baseLine.getParallelLineThroughPoint({4, 3});
+  DirectedLine testLine = *DirectedLine::fromPoints({2, 0}, {2, 5});
+  testIntersection(l0, testLine, {2, 2});
+}
+
 TEST(Line, Angle) {
   DirectedLine l0 = *DirectedLine::fromPoints({0, 0}, {0, 1});
   DirectedLine l1 = *DirectedLine::fromPoints({0, 1}, {-1, 2});
@@ -129,12 +136,12 @@ TEST(Line, BoundedIntersection) {
   BoundedLine l3 = *BoundedLine::fromPoints({0, 0}, {5, 6});
   ASSERT_FALSE(l0.isInverted());
   ASSERT_FALSE(l1.isInverted());
-  std::optional<Vec2> i0 = l0.getIntersection(l1);
+  std::optional<Vec2> i0 = l0.getPartiallyBoundedIntersection(l1);
   ASSERT_TRUE(i0);
   ASSERT_FLOAT_EQ(std::get<0>(*i0), 2);
   ASSERT_FLOAT_EQ(std::get<1>(*i0), 1);
-  ASSERT_FALSE(l1.getIntersection(l0));
-  ASSERT_FALSE(l0.getIntersection(l2));
+  ASSERT_FALSE(l1.getPartiallyBoundedIntersection(l0));
+  ASSERT_FALSE(l0.getPartiallyBoundedIntersection(l2));
   ASSERT_FALSE(l0.getBoundedIntersection(l1));
   ASSERT_FALSE(l1.getBoundedIntersection(l0));
   ASSERT_FALSE(l0.getBoundedIntersection(l2));
