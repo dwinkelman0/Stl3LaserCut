@@ -44,6 +44,21 @@ class RingVector {
     return vec_[index % getSize()];
   }
 
+  void foreach (const std::function<void(const T &)> &callback) const {
+    for (uint32_t i = 0; i < getSize(); ++i) {
+      callback(this->operator[](i));
+    }
+  }
+
+  template <typename T2>
+  RingVector<T2> foreach (const std::function<T2(const T &)> &callback) const {
+    std::vector<T2> output;
+    for (uint32_t i = 0; i < getSize(); ++i) {
+      output.push_back(callback(this->operator[](i)));
+    }
+    return output;
+  }
+
   void foreach (const std::function<void(const std::vector<T> &)> &callback,
                 const uint32_t size) const {
     for (uint32_t i = 0; i < getSize(); ++i) {

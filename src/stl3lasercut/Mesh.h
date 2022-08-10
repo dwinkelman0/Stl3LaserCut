@@ -16,23 +16,17 @@ namespace stl3lasercut {
 class Plane : public std::enable_shared_from_this<Plane> {
   FRIEND_TEST(MeshTests, Internals);
   FRIEND_TEST(MeshTests, Projectors);
+  FRIEND_TEST(PlaneBaseTests, Initialization);
 
   using VertexConnectivityGraph =
       algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;
   using OffsetFunction = std::function<float(const std::shared_ptr<Plane> &,
                                              const std::shared_ptr<Plane> &)>;
 
-  class EdgeCoordinate {
-   public:
-    uint32_t id;
-    uint32_t offsetId;
-
-    bool operator<(const EdgeCoordinate &other) const;
-  };
-
   struct EdgeData {
     std::shared_ptr<Plane> otherPlane;
-    std::set<EdgeCoordinate> edgeCoords;
+    uint32_t id;
+    std::set<uint32_t> colorIds;
     BoundedLine line;
   };
 
@@ -51,9 +45,8 @@ class Plane : public std::enable_shared_from_this<Plane> {
                const uint32_t v0, const uint32_t v1, const uint32_t v2,
                const std::shared_ptr<Plane> &adjacentPlane);
   void finalizeBase();
-  void addOffsetLayer(const std::shared_ptr<OffsetFunction> &offsetFunction,
-                      const std::shared_ptr<OffsetFunction>
-                          &baseOffsetFunction = nullOffsetFunctionPtr_);
+  uint32_t addOffsetLayer(const OffsetFunction &offsetFunction,
+                          const uint32_t baseColor);
 
   uint32_t getId() const;
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
@@ -79,13 +72,12 @@ class Plane : public std::enable_shared_from_this<Plane> {
   uint32_t id_;
   Vec3 normal_;
   Graph graph_;
-  algo::Lookup<std::shared_ptr<OffsetFunction>> offsetFunctions_;
-  uint32_t nullOffsetFunction_;
+  uint32_t colorIdCounter_;
   uint32_t edgeIdCounter_;
   uint32_t vertexIdCounter_;
   std::map<std::pair<uint32_t, uint32_t>, BoundedLine> lineMap_;
   std::map<Vec2, uint32_t> vertexMap_;
-  std::map<uint32_t, std::set<uint32_t>> offsetFunctionVertices_;
+  std::map<uint32_t, std::set<uint32_t>> colorVertices_;
 };
 
 class Mesh {

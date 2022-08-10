@@ -24,6 +24,8 @@ std::ostream &operator<<(std::ostream &os, const MeshTestCase &mesh) {
   return os;
 }
 
+#define SAMPLE(n) .name = #n, .triangles = samples::n
+
 class MeshTests : public testing::TestWithParam<MeshTestCase> {
  public:
   void SetUp() override {
@@ -63,8 +65,7 @@ TEST_P(MeshTests, Internals) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
     ASSERT_GT(plane->getId(), 0);
     ASSERT_EQ(plane->vertexMap_.size(), plane->graph_.getVertices().getCount());
-    ASSERT_EQ(plane->offsetFunctionVertices_.find(plane->nullOffsetFunction_)
-                  ->second.size(),
+    ASSERT_EQ(plane->colorVertices_.find(0)->second.size(),
               plane->graph_.getVertices().getCount());
     for (const auto vertex : plane->graph_.getVertices()) {
       ASSERT_EQ(plane->graph_.getEdgesFromVertex(vertex).getCount(),
@@ -79,7 +80,7 @@ TEST_P(MeshTests, Internals) {
     }
     for (const auto &edge : plane->graph_.getEdges()) {
       ASSERT_TRUE(edge.getValue().otherPlane);
-      ASSERT_EQ(edge.getValue().edgeCoords.size(), 1);
+      ASSERT_EQ(edge.getValue().colorIds.size(), 1);
     }
   }
 }
@@ -98,30 +99,21 @@ static float dummyOffsetFunction(const std::shared_ptr<Plane> &a,
                                  const std::shared_ptr<Plane> &b) {
   return -0.2;
 }
-static auto dummyOffsetFunctionPtr = std::make_shared<std::function<float(
-    const std::shared_ptr<Plane> &, const std::shared_ptr<Plane> &)>>(
-    dummyOffsetFunction);
 
 TEST_P(MeshTests, PlaneOffsetFunction) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
     std::cout << "new plane" << std::endl;
-    plane->addOffsetLayer(dummyOffsetFunctionPtr);
+    plane->addOffsetLayer(dummyOffsetFunction, 0);
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(
     Mesh, MeshTests,
-    testing::Values(MeshTestCase{.name = "tetrahedron",
-                                 .triangles = samples::tetrahedron,
-                                 .characteristic = {4, 6},
+    testing::Values(MeshTestCase{SAMPLE(tetrahedron), .characteristic = {4, 6},
                                  .faces = {{{3, 3}, 4}}},
-                    MeshTestCase{.name = "octahedron",
-                                 .triangles = samples::octahedron,
-                                 .characteristic = {6, 12},
+                    MeshTestCase{SAMPLE(octahedron), .characteristic = {6, 12},
                                  .faces = {{{3, 3}, 8}}},
                     MeshTestCase{
-                        .name = "bowtie",
-                        .triangles = samples::bowtie,
-                        .characteristic = {7, 13},
+                        SAMPLE(bowtie), .characteristic = {7, 13},
                         .faces = {{{3, 3}, 4}, {{4, 4}, 2}, {{5, 6}, 1}}}));
 }  // namespace stl3lasercut

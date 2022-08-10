@@ -5,24 +5,19 @@
 #include <stl3lasercut/RingVector.h>
 
 namespace stl3lasercut {
-
-bool Plane::EdgeCoordinate::operator<(const EdgeCoordinate &other) const {
-  return std::tie(id, offsetId) < std::tie(other.id, other.offsetId);
-}
-
 Plane::Plane(const uint32_t id, const Vec3 &normal)
     : id_(id),
       normal_(normal),
-      nullOffsetFunction_(offsetFunctions_(nullOffsetFunctionPtr_)),
-      edgeIdCounter_(0) {}
+      colorIdCounter_(1),
+      edgeIdCounter_(0),
+      vertexIdCounter_(0) {}
 
 bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
                     const uint32_t v2,
                     const std::shared_ptr<Plane> &adjacentPlane) {
   graph_.emplaceVertex(v0);
   vertexMap_.emplace(point, v1);
-  offsetFunctionVertices_.emplace(nullOffsetFunction_, std::set<uint32_t>())
-      .first->second.insert(v1);
+  colorVertices_.emplace(0, std::set<uint32_t>()).first->second.insert(v1);
   Graph::VertexIterator vertexIt = graph_.emplaceVertex(v1).first;
   vertexIt->getValue().mappedPoint = point;
   vertexIt->getValue().vertexConnectivity.emplaceVertex(v0);
@@ -34,14 +29,13 @@ bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
     return true;
   } else {
     Graph::EdgeIterator edgeIt = graph_.emplaceEdge(v0, v1).first;
-    edgeIt->getValue().edgeCoords.insert(EdgeCoordinate{
-        .id = edgeIdCounter_++, .offsetId = nullOffsetFunction_});
+    edgeIt->getValue().id = edgeIdCounter_++;
+    edgeIt->getValue().colorIds.insert(0);
     if (adjacentPlane) {
       edgeIt->getValue().otherPlane = adjacentPlane;
-      std::optional<Graph::EdgeIterator> otherEdgeIt =
-          adjacentPlane->graph_.getEdge(v1, v0);
-      assert(otherEdgeIt);
-      (*otherEdgeIt)->getValue().otherPlane = shared_from_this();
+      Graph::unwrap(adjacentPlane->graph_.getEdge(v1, v0))
+          .getValue()
+          .otherPlane = shared_from_this();
     } else {
       edgeIt->getValue().otherPlane = nullptr;
     }
@@ -73,49 +67,49 @@ void Plane::finalizeBase() {
   }
   for (Graph::Edge &edge : graph_.getEdges()) {
     std::optional<BoundedLine> line = BoundedLine::fromPoints(
-        (*graph_.getVertex(edge.getSource()))->getValue().mappedPoint,
-        (*graph_.getVertex(edge.getDest()))->getValue().mappedPoint);
+        Graph::unwrap(graph_.getVertex(edge.getSource()))
+            .getValue()
+            .mappedPoint,
+        Graph::unwrap(graph_.getVertex(edge.getDest())).getValue().mappedPoint);
     assert(line);
     edge.getValue().line = *line;
   }
 }
 
-void Plane::addOffsetLayer(
-    const std::shared_ptr<OffsetFunction> &offsetFunction,
-    const std::shared_ptr<OffsetFunction> &baseOffsetFunction) {
-  // Add offset function to lookup table
-  uint32_t offsetFunctionIndex = offsetFunctions_(offsetFunction);
-  uint32_t baseOffsetFunctionIndex = offsetFunctions_(baseOffsetFunction);
+uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
+                               const uint32_t baseColor) {
+  // Assign a new color
+  uint32_t offsetColor = colorIdCounter_++;
 
   const std::set<uint32_t> &validVertices =
-      offsetFunctionVertices_.find(baseOffsetFunctionIndex)->second;
+      colorVertices_.find(baseColor)->second;
   std::set<uint32_t> remainingVertices(validVertices);
   while (!remainingVertices.empty()) {
     std::map<uint32_t, std::pair<uint32_t, uint32_t>> newVertexMap;
     std::vector<Graph::Edge> sequence;
-    auto currentIt = graph_.getVertex(*remainingVertices.begin());
-    assert(currentIt);
-    Graph::Vertex &current = **currentIt;
+    Graph::Vertex current =
+        Graph::unwrap(graph_.getVertex(*remainingVertices.begin()));
     std::optional<uint32_t> previous(std::nullopt);
     uint32_t firstIndex = current.getIndex();
     do {
+      // Identify an initial loop
       std::cout << current.getIndex() << " -> ";
       remainingVertices.erase(current.getIndex());
-      uint32_t next = current.getIndex();
+      uint32_t nextIndex = current.getIndex();
       if (previous) {
         // There are two vertices in this loop already
         current.getValue().vertexConnectivity.traverseDepthFirst(
             [&validVertices,
-             &next](const VertexConnectivityGraph::ConstVertex &vertex) {
+             &nextIndex](const VertexConnectivityGraph::ConstVertex &vertex) {
               if (validVertices.find(vertex.getIndex()) !=
                   validVertices.end()) {
-                next = vertex.getIndex();
+                nextIndex = vertex.getIndex();
               }
             },
             [](const VertexConnectivityGraph::ConstEdge &edge) {}, *previous);
-        assert(next != current.getIndex());
+        assert(nextIndex != current.getIndex());
       } else {
-        // Find an arbitrary, unvisited vertex in this offset group
+        // Find an arbitrary, unvisited vertex in this color
         auto outgoingEdges = graph_.getEdgesFromVertex(current);
         auto nextEdgeIt =
             std::find_if(outgoingEdges.begin(), outgoingEdges.end(),
@@ -124,42 +118,43 @@ void Plane::addOffsetLayer(
                                   remainingVertices.end();
                          });
         assert(nextEdgeIt != outgoingEdges.end());
-        next = nextEdgeIt->getDest();
-        assert(next != current.getIndex());
+        nextIndex = nextEdgeIt->getDest();
+        assert(nextIndex != current.getIndex());
       }
-      std::optional<Graph::VertexIterator> nextIt = graph_.getVertex(next);
-      assert(nextIt);
+      Graph::Vertex next = Graph::unwrap(graph_.getVertex(nextIndex));
 
       previous = current.getIndex();
-      current = **nextIt;
-      std::optional<Graph::EdgeIterator> edgeIt =
-          graph_.getEdge(*previous, current);
-      assert(edgeIt);
-      sequence.push_back(**edgeIt);
+      current = next;
+      sequence.push_back(Graph::unwrap(graph_.getEdge(*previous, current)));
     } while (current.getIndex() != firstIndex);
-    std::cout << current.getIndex() << std::endl;
-
     RingVector<Graph::Edge> edgeRing(sequence);
-    edgeRing.foreachPair([this, offsetFunction, offsetFunctionIndex,
-                          &newVertexMap](const Graph::Edge &a,
-                                         const Graph::Edge &b) {
+    std::cout << current.getIndex() << " (" << edgeRing.getSize()
+              << " vertices in ring)" << std::endl;
+
+    // Construct anchor points for the offset network
+    edgeRing.foreachPair([this, offsetFunction, offsetColor, &newVertexMap](
+                             const Graph::Edge &a, const Graph::Edge &b) {
       assert(a.getDest() == b.getSource());
       uint32_t index = a.getDest();
-      std::optional<Graph::VertexIterator> vertexIt = graph_.getVertex(index);
-      assert(vertexIt);
+      Graph::Vertex vertex = Graph::unwrap(graph_.getVertex(index));
       float aOffset =
-          a.getValue().otherPlane
-              ? (*offsetFunction)(shared_from_this(), a.getValue().otherPlane)
-              : 0;
+          offsetFunction(shared_from_this(), a.getValue().otherPlane);
       float bOffset =
-          b.getValue().otherPlane
-              ? (*offsetFunction)(shared_from_this(), a.getValue().otherPlane)
-              : 0;
+          offsetFunction(shared_from_this(), b.getValue().otherPlane);
       if (aOffset != 0 || bOffset != 0) {
         // Code for creating new vertices associated with a point
         auto makeNewVertexFromPoint = [this](const Vec2 &point) {
           auto [vertexMapIt, success] = vertexMap_.emplace(point, 0);
-          return success ? vertexMapIt->second : makeNewVertex()->getIndex();
+          if (success) {
+            // A new point was created
+            Graph::VertexIterator newVertexIt = makeNewVertex();
+            vertexMapIt->second = newVertexIt->getIndex();
+            newVertexIt->getValue().mappedPoint = point;
+            return newVertexIt->getIndex();
+          } else {
+            // The point already exists
+            return vertexMapIt->second;
+          }
         };
 
         // Calculate intersection
@@ -172,7 +167,7 @@ void Plane::addOffsetLayer(
           // The lines are parallel
           Line perpendicular =
               a.getValue().line.getPerpendicularLineThroughPoint(
-                  (*vertexIt)->getValue().mappedPoint);
+                  vertex.getValue().mappedPoint);
           std::optional<Vec2> aIntersection =
               a.getValue()
                   .line.getParallelLineWithOffset(aOffset)
@@ -197,8 +192,8 @@ void Plane::addOffsetLayer(
 
         // Add points to vertex map
         if (intersection) {
-          std::cout << (*vertexIt)->getValue().mappedPoint << " => "
-                    << *intersection << std::endl;
+          std::cout << vertex.getValue().mappedPoint << " => " << *intersection
+                    << std::endl;
           uint32_t newIndex = makeNewVertexFromPoint(*intersection);
           newVertexMap.emplace(
               index, std::pair<uint32_t, uint32_t>(newIndex, newIndex));
@@ -206,18 +201,43 @@ void Plane::addOffsetLayer(
       }
     });
 
-    // Perform a second pass to connect vertices
+    // Perform a second pass to connect anchor vertices
+    RingVector<Graph::Edge> offsetEdges = edgeRing.foreach<Graph::Edge>(
+        [this, offsetColor, &newVertexMap](const Graph::Edge &edge) {
+          auto sourceIt = newVertexMap.find(edge.getSource());
+          auto destIt = newVertexMap.find(edge.getDest());
+          uint32_t source = sourceIt != newVertexMap.end()
+                                ? sourceIt->second.second
+                                : edge.getSource();
+          uint32_t dest = destIt != newVertexMap.end() ? destIt->second.first
+                                                       : edge.getDest();
+          Graph::EdgeIterator newEdge = graph_.emplaceEdge(source, dest).first;
+
+          // Fill in basic information
+          newEdge->getValue().otherPlane = edge.getValue().otherPlane;
+          newEdge->getValue().id = edge.getValue().id;
+          newEdge->getValue().colorIds.insert(offsetColor);
+
+          // Calculate bounded line
+          Graph::Vertex sourceVertex = Graph::unwrap(graph_.getVertex(source));
+          Graph::Vertex destVertex = Graph::unwrap(graph_.getVertex(dest));
+          std::optional<BoundedLine> line = BoundedLine::fromDirectedLine(
+              edge.getValue().line, sourceVertex.getValue().mappedPoint,
+              destVertex.getValue().mappedPoint);
+          assert(line);
+          newEdge->getValue().line = *line;
+
+          return *newEdge;
+        });
+
     std::cout << newVertexMap.size() << " new vertices" << std::endl;
   }
+  return offsetColor;
 }
 
 bool Plane::edgeMatchesOffset(const Graph::ConstEdge &edge,
                               const uint32_t offset) {
-  return std::any_of(edge.getValue().edgeCoords.begin(),
-                     edge.getValue().edgeCoords.end(),
-                     [offset](const EdgeCoordinate &coord) {
-                       return coord.offsetId == offset;
-                     });
+  return false;
 }
 
 bool Plane::anyEdgeMatchesOffset(
@@ -269,14 +289,6 @@ uint32_t Plane::getId() const { return id_; }
 std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {
   return {graph_.getVertices().getCount(), graph_.getEdges().getCount()};
 }
-
-float Plane::nullOffsetFunction(const std::shared_ptr<Plane> &a,
-                                const std::shared_ptr<Plane> &b) {
-  return 0;
-}
-
-std::shared_ptr<Plane::OffsetFunction> Plane::nullOffsetFunctionPtr_ =
-    std::make_shared<OffsetFunction>(Plane::nullOffsetFunction);
 
 Mesh::Mesh() : planeIdCounter_(0) {}
 
