@@ -52,21 +52,7 @@ class Plane : public std::enable_shared_from_this<Plane> {
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
 
  private:
-  static bool edgeMatchesOffset(const Graph::ConstEdge &edge,
-                                const uint32_t offset);
-  static bool anyEdgeMatchesOffset(
-      const Graph::Range<Graph::EdgeConstIterator> &range,
-      const uint32_t offset);
-  bool vertexMatchesOffset(const Graph::ConstVertex &vertex,
-                           const uint32_t offset) const;
-  uint32_t getOutermostConnectedVertex(
-      const Graph::ConstVertex &vertex, const uint32_t start,
-      const uint32_t offsetFunctionIndex) const;
   Graph::VertexIterator makeNewVertex();
-
-  static float nullOffsetFunction(const std::shared_ptr<Plane> &a,
-                                  const std::shared_ptr<Plane> &b);
-  static std::shared_ptr<OffsetFunction> nullOffsetFunctionPtr_;
 
  private:
   uint32_t id_;

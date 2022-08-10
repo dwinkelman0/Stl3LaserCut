@@ -235,44 +235,10 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
   return offsetColor;
 }
 
-bool Plane::edgeMatchesOffset(const Graph::ConstEdge &edge,
-                              const uint32_t offset) {
-  return false;
-}
+uint32_t Plane::getId() const { return id_; }
 
-bool Plane::anyEdgeMatchesOffset(
-    const Graph::Range<Graph::EdgeConstIterator> &range,
-    const uint32_t offset) {
-  return std::any_of(range.begin(), range.end(),
-                     [offset](const Graph::ConstEdge &edge) {
-                       return edgeMatchesOffset(edge, offset);
-                     });
-}
-
-bool Plane::vertexMatchesOffset(const Graph::ConstVertex &vertex,
-                                const uint32_t offset) const {
-  return anyEdgeMatchesOffset(graph_.getEdgesToVertex(vertex), offset) &&
-         anyEdgeMatchesOffset(graph_.getEdgesFromVertex(vertex), offset);
-}
-
-uint32_t Plane::getOutermostConnectedVertex(
-    const Graph::ConstVertex &origin, const uint32_t start,
-    const uint32_t offsetFunctionIndex) const {
-  uint32_t output = start;
-  origin.getValue().vertexConnectivity.traverseDepthFirst(
-      [this, origin, offsetFunctionIndex,
-       &output](const VertexConnectivityGraph::ConstVertex &vertex) {
-        std::optional<Graph::EdgeConstIterator> edgeIt =
-            graph_.getEdge(origin, vertex.getIndex());
-        if (edgeIt) {
-          Graph::ConstEdge &edge = **edgeIt;
-          if (edgeMatchesOffset(edge, offsetFunctionIndex)) {
-            output = vertex.getIndex();
-          }
-        }
-      },
-      [](const VertexConnectivityGraph::ConstEdge &edge) {}, start);
-  return output;
+std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {
+  return {graph_.getVertices().getCount(), graph_.getEdges().getCount()};
 }
 
 Plane::Graph::VertexIterator Plane::makeNewVertex() {
@@ -282,12 +248,6 @@ Plane::Graph::VertexIterator Plane::makeNewVertex() {
       return it;
     }
   }
-}
-
-uint32_t Plane::getId() const { return id_; }
-
-std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {
-  return {graph_.getVertices().getCount(), graph_.getEdges().getCount()};
 }
 
 Mesh::Mesh() : planeIdCounter_(0) {}
