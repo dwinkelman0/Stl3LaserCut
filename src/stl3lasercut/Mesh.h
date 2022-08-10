@@ -52,7 +52,7 @@ class Plane : public std::enable_shared_from_this<Plane> {
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
 
  private:
-  Graph::VertexIterator makeNewVertex();
+  Graph::VertexIterator makeNewVertex(const Vec2 &point);
 
  private:
   uint32_t id_;
