@@ -64,7 +64,8 @@ TEST_P(MeshTests, VertexEdgeCount) {
 TEST_P(MeshTests, Internals) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
     ASSERT_GT(plane->getId(), 0);
-    ASSERT_EQ(plane->vertexMap_.size(), plane->graph_.getVertices().getCount());
+    // ASSERT_EQ(plane->vertexMap_.size(),
+    // plane->graph_.getVertices().getCount());
     ASSERT_EQ(plane->colorVertices_.find(0)->second.size(),
               plane->graph_.getVertices().getCount());
     for (const auto vertex : plane->graph_.getVertices()) {
@@ -88,7 +89,8 @@ TEST_P(MeshTests, Internals) {
 TEST_P(MeshTests, Projectors) {
   for (const auto &[projector, plane] : mesh_.getPlanes()) {
     for (const auto vertex : plane->graph_.getVertices()) {
-      Vec3 point = mesh_.getVertexVector(vertex.getIndex());
+      Vec3 point =
+          mesh_.getVertexVector(*plane->getExternalVertexId(vertex.getIndex()));
       testPoint(projector.restore(projector.normalize(point)), point);
       testPoint(projector.restore(vertex.getValue().mappedPoint), point);
     }

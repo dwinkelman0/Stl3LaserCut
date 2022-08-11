@@ -39,10 +39,14 @@ class Plane : public std::enable_shared_from_this<Plane> {
 
  public:
   Plane(const uint32_t id, const Vec3 &normal);
-  bool addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
-               const uint32_t v2, const std::shared_ptr<Plane> &adjacentPlane);
-  bool addEdge(const Projector3D &projector, const Vec3 &point,
-               const uint32_t v0, const uint32_t v1, const uint32_t v2,
+  bool addEdge(const std::pair<uint32_t, Vec2> &p0,
+               const std::pair<uint32_t, Vec2> &p1,
+               const std::pair<uint32_t, Vec2> &p2,
+               const std::shared_ptr<Plane> &adjacentPlane);
+  bool addEdge(const Projector3D &projector,
+               const std::pair<uint32_t, Vec3> &p0,
+               const std::pair<uint32_t, Vec3> &p1,
+               const std::pair<uint32_t, Vec3> &p2,
                const std::shared_ptr<Plane> &adjacentPlane);
   void finalizeBase();
   uint32_t addOffsetLayer(const OffsetFunction &offsetFunction,
@@ -50,9 +54,14 @@ class Plane : public std::enable_shared_from_this<Plane> {
 
   uint32_t getId() const;
   std::pair<uint32_t, uint32_t> getCharacteristic() const;
+  std::optional<Graph::EdgeIterator> getCorrespondingEdge(const uint32_t v0,
+                                                          const uint32_t v1);
+  std::optional<uint32_t> getExternalVertexId(const uint32_t internalId) const;
 
  private:
   Graph::VertexIterator makeNewVertex(const Vec2 &point);
+  Graph::VertexIterator makeNewVertex(const Vec2 &point,
+                                      const uint32_t externalId);
 
  private:
   uint32_t id_;
@@ -60,10 +69,12 @@ class Plane : public std::enable_shared_from_this<Plane> {
   Graph graph_;
   uint32_t colorIdCounter_;
   uint32_t edgeIdCounter_;
-  uint32_t vertexIdCounter_;
-  std::map<std::pair<uint32_t, uint32_t>, BoundedLine> lineMap_;
-  std::map<Vec2, uint32_t> vertexMap_;
   std::map<uint32_t, std::set<uint32_t>> colorVertices_;
+  std::map<uint32_t, uint32_t>
+      externalVertexLookup_; /** Maps external id to internal id. */
+  std::map<uint32_t, uint32_t>
+      internalVertexLookup_;        /** Maps internal id to external id. */
+  algo::Lookup<Vec2> vertexLookup_; /** Maps internal id to Vec2 point. */
 };
 
 class Mesh {
@@ -80,8 +91,10 @@ class Mesh {
 
  protected:
   void addEdge(const std::shared_ptr<Plane> &plane,
-               const Projector3D &projector, const Vec3 &point,
-               const uint32_t v0, const uint32_t v1, const uint32_t v2);
+               const Projector3D &projector,
+               const std::pair<uint32_t, Vec3> &p0,
+               const std::pair<uint32_t, Vec3> &p1,
+               const std::pair<uint32_t, Vec3> &p2);
 
  private:
   algo::Lookup<Vec3> vertices_;

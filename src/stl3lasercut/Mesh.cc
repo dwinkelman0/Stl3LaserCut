@@ -8,20 +8,17 @@
 
 namespace stl3lasercut {
 Plane::Plane(const uint32_t id, const Vec3 &normal)
-    : id_(id),
-      normal_(normal),
-      colorIdCounter_(1),
-      edgeIdCounter_(0),
-      vertexIdCounter_(0) {}
+    : id_(id), normal_(normal), colorIdCounter_(1), edgeIdCounter_(0) {}
 
-bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
-                    const uint32_t v2,
+bool Plane::addEdge(const std::pair<uint32_t, Vec2> &p0,
+                    const std::pair<uint32_t, Vec2> &p1,
+                    const std::pair<uint32_t, Vec2> &p2,
                     const std::shared_ptr<Plane> &adjacentPlane) {
-  graph_.emplaceVertex(v0);
-  vertexMap_.emplace(point, v1);
+  uint32_t v0 = makeNewVertex(p0.second, p0.first)->getIndex();
+  Graph::VertexIterator vertexIt = makeNewVertex(p1.second, p1.first);
+  uint32_t v1 = vertexIt->getIndex();
+  uint32_t v2 = makeNewVertex(p2.second, p2.first)->getIndex();
   colorVertices_.emplace(0, std::set<uint32_t>()).first->second.insert(v1);
-  Graph::VertexIterator vertexIt = graph_.emplaceVertex(v1).first;
-  vertexIt->getValue().mappedPoint = point;
   vertexIt->getValue().vertexConnectivity.emplaceVertex(v0);
   vertexIt->getValue().vertexConnectivity.emplaceVertex(v2);
   vertexIt->getValue().vertexConnectivity.emplaceEdge(v0, v2);
@@ -35,9 +32,11 @@ bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
     edgeIt->getValue().colorIds.insert(0);
     if (adjacentPlane) {
       edgeIt->getValue().otherPlane = adjacentPlane;
-      Graph::unwrap(adjacentPlane->graph_.getEdge(v1, v0))
-          .getValue()
-          .otherPlane = shared_from_this();
+      std::optional<Graph::EdgeIterator> adjacentEdge =
+          adjacentPlane->getCorrespondingEdge(p0.first, p1.first);
+      if (adjacentEdge) {
+        (*adjacentEdge)->getValue().otherPlane = shared_from_this();
+      }
     } else {
       edgeIt->getValue().otherPlane = nullptr;
     }
@@ -45,10 +44,14 @@ bool Plane::addEdge(const Vec2 &point, const uint32_t v0, const uint32_t v1,
   }
 }
 
-bool Plane::addEdge(const Projector3D &projector, const Vec3 &point,
-                    const uint32_t v0, const uint32_t v1, const uint32_t v2,
+bool Plane::addEdge(const Projector3D &projector,
+                    const std::pair<uint32_t, Vec3> &p0,
+                    const std::pair<uint32_t, Vec3> &p1,
+                    const std::pair<uint32_t, Vec3> &p2,
                     const std::shared_ptr<Plane> &adjacentPlane) {
-  return addEdge(projector.normalize(point), v0, v1, v2, adjacentPlane);
+  return addEdge({p0.first, projector.normalize(p0.second)},
+                 {p1.first, projector.normalize(p1.second)},
+                 {p2.first, projector.normalize(p2.second)}, adjacentPlane);
 }
 
 void Plane::finalizeBase() {
@@ -69,10 +72,7 @@ void Plane::finalizeBase() {
   }
   for (Graph::Edge &edge : graph_.getEdges()) {
     std::optional<BoundedLine> line = BoundedLine::fromPoints(
-        Graph::unwrap(graph_.getVertex(edge.getSource()))
-            .getValue()
-            .mappedPoint,
-        Graph::unwrap(graph_.getVertex(edge.getDest())).getValue().mappedPoint);
+        vertexLookup_(edge.getSource()), vertexLookup_(edge.getDest()));
     assert(line);
     edge.getValue().line = *line;
   }
@@ -138,7 +138,6 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
                              const Graph::Edge &a, const Graph::Edge &b) {
       assert(a.getDest() == b.getSource());
       uint32_t index = a.getDest();
-      Graph::Vertex vertex = Graph::unwrap(graph_.getVertex(index));
       float aOffset =
           offsetFunction(shared_from_this(), a.getValue().otherPlane);
       float bOffset =
@@ -154,7 +153,7 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
           // The lines are parallel
           Line perpendicular =
               a.getValue().line.getPerpendicularLineThroughPoint(
-                  vertex.getValue().mappedPoint);
+                  vertexLookup_(index));
           std::optional<Vec2> aIntersection =
               a.getValue()
                   .line.getParallelLineWithOffset(aOffset)
@@ -179,10 +178,9 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
 
         // Add points to vertex map
         if (intersection) {
-          std::cout << vertex.getValue().mappedPoint << " ["
-                    << vertex.getIndex() << "] => " << *intersection
-                    << std::endl;
           uint32_t newIndex = makeNewVertex(*intersection)->getIndex();
+          std::cout << vertexLookup_(index) << " [" << index << "] => "
+                    << *intersection << "[" << newIndex << "]" << std::endl;
           newVertexMap.emplace(
               index, std::pair<uint32_t, uint32_t>(newIndex, newIndex));
         }
@@ -211,14 +209,10 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
               newEdge->getValue().colorIds.insert(offsetColor);
 
               // Calculate bounded line
-              Graph::Vertex sourceVertex =
-                  Graph::unwrap(graph_.getVertex(source));
-              Graph::Vertex destVertex = Graph::unwrap(graph_.getVertex(dest));
               std::optional<BoundedLine> line = BoundedLine::fromDirectedLine(
                   edge.getValue().line.getParallelLineWithOffset(offsetFunction(
                       shared_from_this(), edge.getValue().otherPlane)),
-                  sourceVertex.getValue().mappedPoint,
-                  destVertex.getValue().mappedPoint);
+                  vertexLookup_(source), vertexLookup_(dest));
               assert(line);
               newEdge->getValue().line = *line;
 
@@ -249,9 +243,8 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
         it->getValue().otherPlane = nullptr;
         it->getValue().id = edgeId;
         it->getValue().colorIds.insert(offsetColor);
-        std::optional<BoundedLine> line = BoundedLine::fromPoints(
-            Graph::unwrap(graph_.getVertex(source)).getValue().mappedPoint,
-            Graph::unwrap(graph_.getVertex(dest)).getValue().mappedPoint);
+        std::optional<BoundedLine> line =
+            BoundedLine::fromPoints(vertexLookup_(source), vertexLookup_(dest));
         assert(line);
         it->getValue().line = *line;
       };
@@ -261,12 +254,8 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
         if (a0.getDest() != a1.getDest() && b0.getSource() != b1.getSource()) {
           DirectedLine::PointComparator comparator(
               Graph::unwrap(graph_.getEdge(a1.getDest(), v0)).getValue().line);
-          if (comparator(Graph::unwrap(graph_.getVertex(a1.getDest()))
-                             .getValue()
-                             .mappedPoint,
-                         Graph::unwrap(graph_.getVertex(b1.getSource()))
-                             .getValue()
-                             .mappedPoint)) {
+          if (comparator(vertexLookup_(a1.getDest()),
+                         vertexLookup_(b1.getSource()))) {
             // a1 is further than b1
             connectVertices(a0.getValue().id, a1.getDest(), b1.getSource());
             connectVertices(a0.getValue().id, b1.getSource(), v0);
@@ -301,9 +290,9 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
                 a1.getValue().line.getIntersection(b0.getValue().line);
             std::optional<Vec2> p3 =
                 a0.getValue().line.getIntersection(b1.getValue().line);
+            assert(p2 && p3);
             Graph::VertexIterator v2 = makeNewVertex(*p2);
             Graph::VertexIterator v3 = makeNewVertex(*p3);
-            assert(p2 && p3);
             connectVertices(a0.getValue().id, a1.getSource(), v2->getIndex());
             connectVertices(a0.getValue().id, v2->getIndex(), v1);
             connectVertices(b0.getValue().id, v1, v3->getIndex());
@@ -328,23 +317,38 @@ std::pair<uint32_t, uint32_t> Plane::getCharacteristic() const {
   return {graph_.getVertices().getCount(), graph_.getEdges().getCount()};
 }
 
+std::optional<Plane::Graph::EdgeIterator> Plane::getCorrespondingEdge(
+    const uint32_t v0, const uint32_t v1) {
+  // Map external ids to internal ids
+  auto it0 = externalVertexLookup_.find(v0);
+  auto it1 = externalVertexLookup_.find(v1);
+  return it0 != externalVertexLookup_.end() &&
+                 it1 != externalVertexLookup_.end()
+             ? std::optional<Graph::EdgeIterator>(
+                   graph_.getEdge(it1->second, it0->second))
+             : std::nullopt;
+}
+
+std::optional<uint32_t> Plane::getExternalVertexId(
+    const uint32_t internalId) const {
+  auto it = internalVertexLookup_.find(internalId);
+  return it != internalVertexLookup_.end() ? std::optional<uint32_t>(it->second)
+                                           : std::nullopt;
+}
+
 Plane::Graph::VertexIterator Plane::makeNewVertex(const Vec2 &point) {
-  auto vertexMapIt = vertexMap_.find(point);
-  if (vertexMapIt != vertexMap_.end()) {
-    std::optional<Graph::VertexIterator> outputIt =
-        graph_.getVertex(vertexMapIt->second);
-    assert(outputIt);
-    return *outputIt;
-  }
-  while (true) {
-    auto [it, success] = graph_.emplaceVertex(vertexIdCounter_++);
-    if (success) {
-      it->getValue().mappedPoint = point;
-      bool emplaceSuccess = vertexMap_.emplace(point, it->getIndex()).second;
-      assert(emplaceSuccess);
-      return it;
-    }
-  }
+  uint32_t index = vertexLookup_.getIndex(point);
+  auto [it, success] = graph_.emplaceVertex(index);
+  it->getValue().mappedPoint = point;
+  return it;
+}
+
+Plane::Graph::VertexIterator Plane::makeNewVertex(const Vec2 &point,
+                                                  const uint32_t externalId) {
+  Graph::VertexIterator it = makeNewVertex(point);
+  externalVertexLookup_.emplace(externalId, it->getIndex());
+  internalVertexLookup_.emplace(it->getIndex(), externalId);
+  return it;
 }
 
 Mesh::Mesh() : planeIdCounter_(0) {}
@@ -359,14 +363,17 @@ Mesh &Mesh::operator<<(const StlTriangle &triangle) {
   std::shared_ptr<Plane> plane = it->second;
 
   // Gather vertices
-  uint32_t v0 = vertices_(std::get<0>(triangle.getVertices()));
-  uint32_t v1 = vertices_(std::get<1>(triangle.getVertices()));
-  uint32_t v2 = vertices_(std::get<2>(triangle.getVertices()));
+  std::pair<uint32_t, Vec3> v0(vertices_(std::get<0>(triangle.getVertices())),
+                               std::get<0>(triangle.getVertices()));
+  std::pair<uint32_t, Vec3> v1(vertices_(std::get<1>(triangle.getVertices())),
+                               std::get<1>(triangle.getVertices()));
+  std::pair<uint32_t, Vec3> v2(vertices_(std::get<2>(triangle.getVertices())),
+                               std::get<2>(triangle.getVertices()));
 
   // Add each edge
-  addEdge(plane, projector, std::get<1>(triangle.getVertices()), v0, v1, v2);
-  addEdge(plane, projector, std::get<2>(triangle.getVertices()), v1, v2, v0);
-  addEdge(plane, projector, std::get<0>(triangle.getVertices()), v2, v0, v1);
+  addEdge(plane, projector, v0, v1, v2);
+  addEdge(plane, projector, v1, v2, v0);
+  addEdge(plane, projector, v2, v0, v1);
 
   return *this;
 }
@@ -384,16 +391,19 @@ Vec3 Mesh::getVertexVector(const uint32_t index) const {
 }
 
 void Mesh::addEdge(const std::shared_ptr<Plane> &plane,
-                   const Projector3D &projector, const Vec3 &point,
-                   const uint32_t v0, const uint32_t v1, const uint32_t v2) {
-  mesh_.emplaceVertex(v0);
-  mesh_.emplaceVertex(v1);
-  mesh_.emplaceEdge(v0, v1).first->getValue() = plane;
-  std::optional<MeshGraph::EdgeIterator> adjacentEdge = mesh_.getEdge(v1, v0);
-  if (plane->addEdge(projector, point, v0, v1, v2,
+                   const Projector3D &projector,
+                   const std::pair<uint32_t, Vec3> &p0,
+                   const std::pair<uint32_t, Vec3> &p1,
+                   const std::pair<uint32_t, Vec3> &p2) {
+  mesh_.emplaceVertex(p0.first);
+  mesh_.emplaceVertex(p1.first);
+  mesh_.emplaceEdge(p0.first, p1.first).first->getValue() = plane;
+  std::optional<MeshGraph::EdgeIterator> adjacentEdge =
+      mesh_.getEdge(p1.first, p0.first);
+  if (plane->addEdge(projector, p0, p1, p2,
                      adjacentEdge ? (*adjacentEdge)->getValue() : nullptr)) {
-    mesh_.eraseEdge(std::pair<uint32_t, uint32_t>(v0, v1));
-    mesh_.eraseEdge(std::pair<uint32_t, uint32_t>(v1, v0));
+    mesh_.eraseEdge(std::pair<uint32_t, uint32_t>(p0.first, p1.first));
+    mesh_.eraseEdge(std::pair<uint32_t, uint32_t>(p1.first, p0.first));
   }
 }
 }  // namespace stl3lasercut

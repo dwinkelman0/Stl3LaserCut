@@ -20,8 +20,7 @@ class PlaneSetup {
               });
       ring.foreach (
           [this](const std::vector<std::pair<uint32_t, Vec2>> &points) {
-            plane_->addEdge(points[1].second, points[0].first, points[1].first,
-                            points[2].first, nullptr);
+            plane_->addEdge(points[0], points[1], points[2], nullptr);
           },
           3);
     }
@@ -110,6 +109,8 @@ TEST_P(PlaneConstantOffsetTests, Initialization) {
   //           GetParam().characteristic.front().numVertices * 2);
   // ASSERT_EQ(plane_->getCharacteristic().second,
   //           GetParam().characteristic.front().numVertices * 2);
+  const auto [vertices, edges] = plane_->getCharacteristic();
+  std::cout << vertices << " vertices, " << edges << " edges" << std::endl;
 }
 
 INSTANTIATE_TEST_SUITE_P(Plane, PlaneConstantOffsetTests,
