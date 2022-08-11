@@ -4,6 +4,7 @@
 #include <stl3lasercut/AssemblyPlane.h>
 #include <stl3lasercut/Mesh.h>
 
+#include <algorithm>
 #include <map>
 
 #include "SampleGeometry.h"
@@ -28,37 +29,50 @@ std::ostream &operator<<(std::ostream &os, const MeshTestCase &mesh) {
 
 class MeshTests : public testing::TestWithParam<MeshTestCase> {
  public:
+  MeshTests() : mesh_(std::make_shared<Mesh>()) {}
+
   void SetUp() override {
     std::ofstream outputFile(GetParam().name + ".stl");
     StlOutput output(outputFile);
     for (const StlTriangle &triangle : GetParam().triangles) {
-      mesh_.addTriangle(triangle);
+      mesh_->addTriangle(triangle);
       output << triangle;
     }
   }
 
  protected:
-  Mesh mesh_;
+  std::shared_ptr<Mesh> mesh_;
 };
 
 TEST_P(MeshTests, Characteristic) {
-  ASSERT_TRUE(mesh_.isValid());
-  Mesh::Characteristic characteristic = mesh_.getCharacteristic();
+  ASSERT_TRUE(mesh_->isValid());
+  Mesh::Characteristic characteristic = mesh_->getCharacteristic();
   ASSERT_EQ(characteristic.planes, GetParam().characteristic.planes);
   ASSERT_EQ(characteristic.vertices, GetParam().characteristic.vertices);
   ASSERT_EQ(characteristic.edges, GetParam().characteristic.edges);
 }
 
 TEST_P(MeshTests, AssemblyPlane) {
-  for (const auto &[projector, plane] : mesh_.planes_) {
+  for (const auto &[projector, plane] : mesh_->planes_) {
     for (const AssemblyPlane::Graph::ConstVertex &vertex :
          plane->graph_.getVertices()) {
+      ASSERT_GT(plane->graph_.getEdgesFromVertex(vertex).getCount(), 0);
+      ASSERT_EQ(plane->graph_.getEdgesToVertex(vertex).getCount(),
+                plane->graph_.getEdgesFromVertex(vertex).getCount());
       for (const AssemblyPlane::VertexConnectivityGraph &graph :
            vertex.getValue().getConnectedComponents()) {
         ASSERT_EQ(graph.getVertices().getCount(),
                   graph.getEdges().getCount() + 1);
       }
     }
+    std::set<uint32_t> edgeIds;
+    for (const AssemblyPlane::Graph::ConstEdge &edge :
+         plane->graph_.getEdges()) {
+      edgeIds.insert(edge.getValue());
+    }
+    uint32_t numEdges = plane->graph_.getEdges().getCount();
+    ASSERT_EQ(edgeIds.size(), numEdges);
+    ASSERT_LT(*std::max_element(edgeIds.begin(), edgeIds.end()), numEdges);
   }
 }
 

@@ -17,8 +17,8 @@ void Mesh::addTriangle(const StlTriangle &triangle) {
   // Check whether the associated projector is already present
   Projector3D projector = triangle.getProjector();
   const auto &[it, success] = planes_.emplace(
-      projector,
-      std::make_shared<AssemblyPlane>(*this, ++planeIdCounter_, projector));
+      projector, std::make_shared<AssemblyPlane>(shared_from_this(),
+                                                 ++planeIdCounter_, projector));
   projector = it->first;
   std::shared_ptr<AssemblyPlane> plane = it->second;
 

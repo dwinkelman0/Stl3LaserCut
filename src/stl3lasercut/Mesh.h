@@ -14,7 +14,7 @@
 namespace stl3lasercut {
 class AssemblyPlane;
 
-class Mesh {
+class Mesh : public std::enable_shared_from_this<Mesh> {
   FRIEND_TEST(MeshTests, AssemblyPlane);
 
  private:

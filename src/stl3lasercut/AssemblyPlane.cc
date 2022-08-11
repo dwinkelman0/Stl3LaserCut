@@ -3,9 +3,9 @@
 #include "AssemblyPlane.h"
 
 namespace stl3lasercut {
-AssemblyPlane::AssemblyPlane(const Mesh &mesh, const uint32_t id,
-                             const Projector3D &projector)
-    : mesh_(mesh), id_(id), projector_(projector) {}
+AssemblyPlane::AssemblyPlane(const std::shared_ptr<const Mesh> &mesh,
+                             const uint32_t id, const Projector3D &projector)
+    : mesh_(mesh), id_(id), projector_(projector), edgeIdCounter_(0) {}
 
 uint32_t AssemblyPlane::registerPoint(const uint32_t meshIndex,
                                       const Vec3 &point) {
@@ -42,8 +42,8 @@ void AssemblyPlane::addAngle(const uint32_t v0, const uint32_t v1,
   graph_.emplaceVertex(v0);
   Graph::VertexIterator vertexIt = graph_.emplaceVertex(v1).first;
   graph_.emplaceVertex(v2);
-  graph_.emplaceEdge(v0, v1);
-  graph_.emplaceEdge(v1, v2);
+  addEdge(v0, v1);
+  addEdge(v1, v2);
   VertexConnectivityGraph::VertexIterator it0 =
       vertexIt->getValue().emplaceVertex(v0).first;
   VertexConnectivityGraph::VertexIterator it2 =
@@ -54,5 +54,12 @@ void AssemblyPlane::addAngle(const uint32_t v0, const uint32_t v1,
         "There were connectivity edges that should not have been there.");
   }
   vertexIt->getValue().emplaceEdge(v0, v2);
+}
+
+void AssemblyPlane::addEdge(const uint32_t v0, const uint32_t v1) {
+  auto [it, success] = graph_.emplaceEdge(v0, v1);
+  if (success) {
+    it->getValue() = edgeIdCounter_++;
+  }
 }
 }  // namespace stl3lasercut
