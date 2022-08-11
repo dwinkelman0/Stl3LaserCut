@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <stl3lasercut/AssemblyPlane.h>
+#include <stl3lasercut/LoopPlane.h>
 #include <stl3lasercut/Mesh.h>
 
 #include <algorithm>
@@ -73,6 +74,19 @@ TEST_P(MeshTests, AssemblyPlane) {
     uint32_t numEdges = plane->graph_.getEdges().getCount();
     ASSERT_EQ(edgeIds.size(), numEdges);
     ASSERT_LT(*std::max_element(edgeIds.begin(), edgeIds.end()), numEdges);
+  }
+}
+
+TEST_P(MeshTests, LoopPlane) {
+  for (const auto &[projector, plane] : mesh_->planes_) {
+    LoopPlane loopPlane(plane, 0);
+    for (const LoopPlane::Graph::ConstVertex &vertex :
+         loopPlane.graph_.getVertices()) {
+      ASSERT_EQ(loopPlane.graph_.getEdgesToVertex(vertex).getCount(),
+                loopPlane.graph_.getEdgesFromVertex(vertex).getCount());
+      ASSERT_EQ(vertex.getValue().size(),
+                loopPlane.graph_.getEdgesToVertex(vertex).getCount());
+    }
   }
 }
 

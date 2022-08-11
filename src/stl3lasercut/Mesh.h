@@ -16,6 +16,7 @@ class AssemblyPlane;
 
 class Mesh : public std::enable_shared_from_this<Mesh> {
   FRIEND_TEST(MeshTests, AssemblyPlane);
+  FRIEND_TEST(MeshTests, LoopPlane);
 
  private:
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<AssemblyPlane>,
