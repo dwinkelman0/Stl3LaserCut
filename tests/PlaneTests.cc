@@ -122,6 +122,9 @@ INSTANTIATE_TEST_SUITE_P(Plane, PlaneConstantOffsetTests,
                                  SAMPLE(rightTriangle), .offset = -0.5,
                                  .characteristic = characteristic::flat({3})},
                              PlaneConstantOffsetTestCase{
+                                 SAMPLE(obtuseTriangle), .offset = -0.5,
+                                 .characteristic = characteristic::flat({3})},
+                             PlaneConstantOffsetTestCase{
                                  SAMPLE(straightAnglePolygon), .offset = -0.5,
                                  .characteristic = characteristic::flat({4})}));
 }  // namespace stl3lasercut

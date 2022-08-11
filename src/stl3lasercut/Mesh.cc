@@ -30,6 +30,7 @@ bool Plane::addEdge(const std::pair<uint32_t, Vec2> &p0,
     Graph::EdgeIterator edgeIt = graph_.emplaceEdge(v0, v1).first;
     edgeIt->getValue().id = edgeIdCounter_++;
     edgeIt->getValue().colorIds.insert(0);
+    edgeIt->getValue().orientation = Orientation::PARALLEL;
     if (adjacentPlane) {
       edgeIt->getValue().otherPlane = adjacentPlane;
       std::optional<Graph::EdgeIterator> adjacentEdge =
@@ -207,6 +208,7 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
               newEdge->getValue().otherPlane = edge.getValue().otherPlane;
               newEdge->getValue().id = edge.getValue().id;
               newEdge->getValue().colorIds.insert(offsetColor);
+              newEdge->getValue().orientation = Orientation::PARALLEL;
 
               // Calculate bounded line
               std::optional<BoundedLine> line = BoundedLine::fromDirectedLine(
@@ -235,14 +237,16 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
         return;
       }
 
-      auto connectVertices = [this, offsetColor](const uint32_t edgeId,
-                                                 const uint32_t source,
-                                                 const uint32_t dest) {
+      auto connectVertices = [this, offsetColor](
+                                 const uint32_t edgeId, const uint32_t source,
+                                 const uint32_t dest,
+                                 const Orientation orientation) {
         auto [it, success] = graph_.emplaceEdge(source, dest);
         assert(success);
         it->getValue().otherPlane = nullptr;
         it->getValue().id = edgeId;
         it->getValue().colorIds.insert(offsetColor);
+        it->getValue().orientation = orientation;
         std::optional<BoundedLine> line =
             BoundedLine::fromPoints(vertexLookup_(source), vertexLookup_(dest));
         assert(line);
@@ -257,19 +261,27 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
           if (comparator(vertexLookup_(a1.getDest()),
                          vertexLookup_(b1.getSource()))) {
             // a1 is further than b1
-            connectVertices(a0.getValue().id, a1.getDest(), b1.getSource());
-            connectVertices(a0.getValue().id, b1.getSource(), v0);
-            connectVertices(b0.getValue().id, v0, b1.getSource());
+            connectVertices(a0.getValue().id, a1.getDest(), b1.getSource(),
+                            Orientation::LEFT_PERPENDICULAR);
+            connectVertices(a0.getValue().id, b1.getSource(), v0,
+                            Orientation::LEFT_PERPENDICULAR);
+            connectVertices(b0.getValue().id, v0, b1.getSource(),
+                            Orientation::RIGHT_PERPENDICULAR);
           } else {
             // a1 is closer than b1
-            connectVertices(a0.getValue().id, a1.getDest(), v0);
-            connectVertices(b0.getValue().id, v0, a1.getDest());
-            connectVertices(b0.getValue().id, a1.getDest(), b1.getSource());
+            connectVertices(a0.getValue().id, a1.getDest(), v0,
+                            Orientation::LEFT_PERPENDICULAR);
+            connectVertices(b0.getValue().id, v0, a1.getDest(),
+                            Orientation::RIGHT_PERPENDICULAR);
+            connectVertices(b0.getValue().id, a1.getDest(), b1.getSource(),
+                            Orientation::RIGHT_PERPENDICULAR);
           }
         } else if (a0.getDest() != a1.getDest()) {
-          connectVertices(a0.getValue().id, a1.getDest(), v0);
+          connectVertices(a0.getValue().id, a1.getDest(), v0,
+                          Orientation::LEFT_PERPENDICULAR);
         } else if (b0.getSource() != b1.getSource()) {
-          connectVertices(b0.getValue().id, v0, b1.getSource());
+          connectVertices(b0.getValue().id, v0, b1.getSource(),
+                          Orientation::RIGHT_PERPENDICULAR);
         }
       } else {
         // The edges have an intersection, proceed based on angle between edges
@@ -277,8 +289,10 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
         float angle = a0.getValue().line.getAngle(b0.getValue().line);
         if (std::abs(angle) < 1e-4) {
           // Close enough to straight
-          connectVertices(a0.getValue().id, v1, v0);
-          connectVertices(b0.getValue().id, v0, v1);
+          connectVertices(a0.getValue().id, v1, v0,
+                          Orientation::LEFT_PERPENDICULAR);
+          connectVertices(b0.getValue().id, v0, v1,
+                          Orientation::RIGHT_PERPENDICULAR);
         } else if (std::abs(angle) < std::numbers::pi / 2) {
           // Requires perpendicular lines
         } else {
@@ -293,16 +307,22 @@ uint32_t Plane::addOffsetLayer(const OffsetFunction &offsetFunction,
             assert(p2 && p3);
             Graph::VertexIterator v2 = makeNewVertex(*p2);
             Graph::VertexIterator v3 = makeNewVertex(*p3);
-            connectVertices(a0.getValue().id, a1.getSource(), v2->getIndex());
-            connectVertices(a0.getValue().id, v2->getIndex(), v1);
-            connectVertices(b0.getValue().id, v1, v3->getIndex());
-            connectVertices(b0.getValue().id, v3->getIndex(), b1.getDest());
-            connectVertices(b0.getValue().id, v2->getIndex(), v0);
-            connectVertices(a0.getValue().id, v0, v3->getIndex());
+            connectVertices(a0.getValue().id, a1.getSource(), v2->getIndex(),
+                            Orientation::PARALLEL);
+            connectVertices(a0.getValue().id, v2->getIndex(), v1,
+                            Orientation::PARALLEL);
+            connectVertices(b0.getValue().id, v1, v3->getIndex(),
+                            Orientation::PARALLEL);
+            connectVertices(b0.getValue().id, v3->getIndex(), b1.getDest(),
+                            Orientation::PARALLEL);
+            connectVertices(b0.getValue().id, v2->getIndex(), v0,
+                            Orientation::PARALLEL);
+            connectVertices(a0.getValue().id, v0, v3->getIndex(),
+                            Orientation::PARALLEL);
           } else if (a0.getDest() != a1.getDest()) {
-            connectVertices(b0.getValue().id, v1, v0);
+            connectVertices(b0.getValue().id, v1, v0, Orientation::PARALLEL);
           } else if (b0.getSource() != b1.getSource()) {
-            connectVertices(a0.getValue().id, v0, v1);
+            connectVertices(a0.getValue().id, v0, v1, Orientation::PARALLEL);
           }
         }
       }

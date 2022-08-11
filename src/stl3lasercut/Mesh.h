@@ -23,10 +23,13 @@ class Plane : public std::enable_shared_from_this<Plane> {
   using OffsetFunction = std::function<float(const std::shared_ptr<Plane> &,
                                              const std::shared_ptr<Plane> &)>;
 
+  enum class Orientation { PARALLEL, RIGHT_PERPENDICULAR, LEFT_PERPENDICULAR };
+
   struct EdgeData {
     std::shared_ptr<Plane> otherPlane;
     uint32_t id;
     std::set<uint32_t> colorIds;
+    Orientation orientation;
     BoundedLine line;
   };
 

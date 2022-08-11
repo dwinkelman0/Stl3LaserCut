@@ -82,6 +82,7 @@ TEST_P(MeshTests, Internals) {
     for (const auto &edge : plane->graph_.getEdges()) {
       ASSERT_TRUE(edge.getValue().otherPlane);
       ASSERT_EQ(edge.getValue().colorIds.size(), 1);
+      ASSERT_EQ(edge.getValue().orientation, Plane::Orientation::PARALLEL);
     }
   }
 }
