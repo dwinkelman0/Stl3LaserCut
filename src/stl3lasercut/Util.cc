@@ -122,4 +122,17 @@ std::ostream &operator<<(std::ostream &os, const Vec3 &vec) {
      << std::get<2>(vec) << ")";
   return os;
 }
+
+float getPolygonArea(const std::vector<Vec2> &points) {
+  float sum = 0;
+  if (points.size() < 3) {
+    return 0;
+  }
+  for (std::vector<Vec2>::const_iterator it = points.begin() + 1,
+                                         end = points.end() - 1;
+       it != end; ++it) {
+    sum += cross(*it - points[0], *(it + 1) - points[0]);
+  }
+  return sum / 2;
+}
 }  // namespace stl3lasercut

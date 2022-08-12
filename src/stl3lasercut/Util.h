@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <tuple>
+#include <vector>
 
 namespace stl3lasercut {
 using Vec2 = std::tuple<float, float>;
@@ -34,4 +35,6 @@ Vec3 rotateZ(const Vec3 vec, const float angle);
 
 std::ostream &operator<<(std::ostream &os, const Vec2 &vec);
 std::ostream &operator<<(std::ostream &os, const Vec3 &vec);
+
+float getPolygonArea(const std::vector<Vec2> &points);
 }  // namespace stl3lasercut
