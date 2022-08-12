@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <stl3lasercut/Line.h>
+#include <stl3lasercut/RingVector.h>
 
 #include <cmath>
 #include <numbers>
@@ -147,5 +148,22 @@ TEST(Line, BoundedIntersection) {
   ASSERT_FALSE(l0.getBoundedIntersection(l2));
   ASSERT_TRUE(l1.getBoundedIntersection(l2));
   ASSERT_TRUE(l0.getBoundedIntersection(l3));
+}
+
+TEST(Line, IsPointContainedInBounds) {
+  std::vector<Vec2> points = {{0, 0}, {4, 0}, {4, 3}, {2, 1}, {0, 3}};
+  std::vector<BoundedLine> bounds;
+  RingVector<Vec2>(points).foreachPair([&bounds](const Vec2 &a, const Vec2 &b) {
+    std::optional<BoundedLine> line = BoundedLine::fromPoints(a, b);
+    ASSERT_TRUE(line);
+    bounds.push_back(*line);
+  });
+  ASSERT_TRUE(isPointContainedInBounds(bounds, {1, 0.5}));
+  ASSERT_TRUE(isPointContainedInBounds(bounds, {1, 1}));
+  ASSERT_TRUE(isPointContainedInBounds(bounds, {1, 1.5}));
+  ASSERT_TRUE(isPointContainedInBounds(bounds, {1.9, 1}));
+  ASSERT_FALSE(isPointContainedInBounds(bounds, {-1, 0}));
+  ASSERT_FALSE(isPointContainedInBounds(bounds, {-1, 1}));
+  ASSERT_FALSE(isPointContainedInBounds(bounds, {-1, 2}));
 }
 }  // namespace stl3lasercut

@@ -2,6 +2,8 @@
 
 #include "Line.h"
 
+#include <cmath>
+
 namespace stl3lasercut {
 Line::Line() : a_(0), b_(0), c_(0) {}
 
@@ -185,4 +187,33 @@ std::ostream &operator<<(std::ostream &os, const BoundedLine &line) {
 BoundedLine::BoundedLine(const DirectedLine &directedLine, const Vec2 &lower,
                          const Vec2 &upper)
     : DirectedLine(directedLine), lower_(lower), upper_(upper) {}
+
+bool isPointContainedInBounds(const std::vector<BoundedLine> &bounds,
+                              const Vec2 &point) {
+  Vec2 unitVector(1, 0);
+  for (uint32_t i = 0; i < 100; ++i) {
+    // Make quasi-random ray
+    unitVector = rotate2D(unitVector, std::sqrt(i));
+    DirectedLine line = *DirectedLine::fromPoints(point, point + unitVector);
+    DirectedLine::PointComparator comparator(line);
+    bool isValid = true;
+    uint32_t numIntersections = 0;
+    for (const BoundedLine &bound : bounds) {
+      std::optional<Vec2> intersection = line.getIntersection(bound);
+      if (!intersection) {
+        isValid = false;
+        break;
+      } else {
+        if (comparator(point, *intersection) &&
+            bound.isInBounds(*intersection)) {
+          ++numIntersections;
+        }
+      }
+    }
+    if (isValid) {
+      return numIntersections % 2;
+    }
+  }
+  throw std::runtime_error("Too many iterations, something is broken");
+}
 }  // namespace stl3lasercut

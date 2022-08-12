@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <variant>
+#include <vector>
 
 namespace stl3lasercut {
 class Line {
@@ -84,4 +85,7 @@ class BoundedLine : public DirectedLine {
               const Vec2 &upper);
   Vec2 lower_, upper_;
 };
+
+bool isPointContainedInBounds(const std::vector<BoundedLine> &bounds,
+                              const Vec2 &point);
 }  // namespace stl3lasercut
