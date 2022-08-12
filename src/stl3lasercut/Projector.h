@@ -31,6 +31,8 @@ class Projector3D {
   friend std::ostream &operator<<(std::ostream &os,
                                   const Projector3D &projector);
 
+  static Projector3D nullProjector;
+
  private:
   float angleZ_;
   float angleX_;

@@ -149,6 +149,10 @@ std::optional<BoundedLine> BoundedLine::fromDirectedLine(
                                   : std::nullopt;
 }
 
+Vec2 BoundedLine::getLowerBound() const { return lower_; }
+
+Vec2 BoundedLine::getUpperBound() const { return upper_; }
+
 Vec2 BoundedLine::getMidpoint() const { return (upper_ + lower_) / 2; }
 
 bool BoundedLine::isInverted() const {

@@ -71,6 +71,8 @@ class BoundedLine : public DirectedLine {
                                                      const Bound &lower,
                                                      const Bound &upper);
 
+  Vec2 getLowerBound() const;
+  Vec2 getUpperBound() const;
   Vec2 getMidpoint() const;
 
   bool isInverted() const;

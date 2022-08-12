@@ -4,7 +4,98 @@
 
 #include <stl3lasercut/AssemblyPlane.h>
 
+#include <algorithm>
+
 namespace stl3lasercut {
+bool LoopPlane::Loop::Characteristic::operator<(
+    const Characteristic &other) const {
+  return std::tie(isPositive, size) < std::tie(other.isPositive, other.size);
+}
+
+bool LoopPlane::Loop::Characteristic::operator==(
+    const Characteristic &other) const {
+  return std::tie(isPositive, size) == std::tie(other.isPositive, other.size);
+}
+
+std::strong_ordering compare(
+    const std::vector<uint32_t>::const_iterator &begin,
+    const std::vector<uint32_t>::const_iterator &end,
+    const std::vector<uint32_t>::const_iterator &other) {
+  for (auto a = begin, b = other; a < end; ++a, ++b) {
+    if (*a < *b) {
+      return std::strong_ordering::less;
+    } else if (*a > *b) {
+      return std::strong_ordering::greater;
+    }
+  }
+  return std::strong_ordering::equal;
+}
+
+std::vector<uint32_t> getCanonicalOrder(const std::vector<uint32_t> &vec) {
+  std::vector<uint32_t> output(vec);
+  for (uint32_t i = 0; i < vec.size(); ++i) {
+    std::strong_ordering res =
+        compare(vec.begin() + i, vec.end(), output.begin());
+    if (res == std::strong_ordering::less ||
+        res == std::strong_ordering::equal &&
+            compare(vec.begin(), vec.begin() + i,
+                    output.begin() + vec.size() - i) ==
+                std::strong_ordering::less) {
+      output.clear();
+      output.insert(output.end(), vec.begin() + i, vec.end());
+      output.insert(output.end(), vec.begin(), vec.begin() + i);
+    }
+  }
+  return output;
+}
+
+LoopPlane::Loop::Loop(const std::set<uint32_t> &vertexSet,
+                      const std::vector<BoundedLine> &bounds,
+                      const std::vector<uint32_t> &edges)
+    : vertexSet_(vertexSet),
+      bounds_(bounds),
+      edges_(getCanonicalOrder(edges)) {}
+
+std::pair<std::partial_ordering, bool> LoopPlane::Loop::operator<=>(
+    const Loop &other) const {
+  bool edgeComparison =
+      std::pair<uint32_t, std::vector<uint32_t>>(edges_.size(), edges_) <
+      std::pair<uint32_t, std::vector<uint32_t>>(other.edges_.size(),
+                                                 other.edges_);
+  std::vector<uint32_t> intersection;
+  std::set_intersection(vertexSet_.begin(), vertexSet_.end(),
+                        other.vertexSet_.begin(), other.vertexSet_.end(),
+                        std::back_inserter(intersection));
+  if (!intersection.empty()) {
+    // If the loops have common vertices, then they are in the same partition
+    return {std::partial_ordering::equivalent, edgeComparison};
+  } else {
+    // Check whether a point from this is contained in other
+    return {contains(other)         ? std::partial_ordering::greater
+            : other.contains(*this) ? std::partial_ordering::less
+                                    : std::partial_ordering::unordered,
+            edgeComparison};
+  }
+}
+
+bool LoopPlane::Loop::isPositive() const {
+  std::vector<Vec2> points;
+  for (const BoundedLine &line : bounds_) {
+    points.push_back(line.getLowerBound());
+  }
+  return getPolygonArea(points) > 0;
+}
+
+LoopPlane::Loop::Characteristic LoopPlane::Loop::getCharacteristic() const {
+  return Characteristic{.isPositive = isPositive(),
+                        .size = static_cast<uint32_t>(edges_.size())};
+}
+
+bool LoopPlane::Loop::contains(const Loop &other) const {
+  Vec2 testPoint = other.bounds_.front().getMidpoint();
+  return isPointContainedInBounds(bounds_, testPoint);
+}
+
 LoopPlane::LoopPlane(const std::shared_ptr<const AssemblyPlane> &assembly,
                      const uint32_t color)
     : assembly_(assembly), color_(color) {
@@ -21,20 +112,21 @@ LoopPlane::LoopPlane(const std::shared_ptr<const AssemblyPlane> &assembly,
       graph_.emplaceEdge(edge.getSource(), edge.getDest()).first->getValue() =
           edge.getValue();
 
-      // Complete vertex connectivity (distinguish positive and negative areas)
+      // Complete vertex connectivity (distinguish vertices with multiple edges)
       const AssemblyPlane::VertexConnectivityGraph &connectivityGraph =
           AssemblyPlane::Graph::unwrap(
               assembly_->graph_.getVertex(edge.getDest()))
               .getValue();
       if (connectivityGraph.getEdgesToVertex(edge.getSource()).getCount() !=
-              0 ||
-          connectivityGraph.getEdgesFromVertex(edge.getSource()).getCount() !=
-              1) {
+          0) {
         throw std::runtime_error("This vertex is messed up.");
       }
       uint32_t terminalVertex = std::numeric_limits<uint32_t>::max();
       connectivityGraph.traverseDepthFirst(
-          [&terminalVertex](const auto &vertex) {
+          [&connectivityGraph, &terminalVertex](const auto &vertex) {
+            if (connectivityGraph.getEdgesFromVertex(vertex).getCount() > 1) {
+              throw std::runtime_error("This vertex is messed up.");
+            }
             terminalVertex = vertex.getIndex();
           },
           [](const auto &) {}, edge.getSource());
@@ -42,5 +134,81 @@ LoopPlane::LoopPlane(const std::shared_ptr<const AssemblyPlane> &assembly,
       vertexIt->getValue().emplace(edge.getSource(), terminalVertex);
     }
   }
+}
+
+uint32_t LoopPlane::getColor() const { return color_; }
+
+void LoopPlane::foreachEdge(
+    const std::function<void(const Graph::ConstEdge &)> &func) const {
+  for (const Graph::ConstEdge &edge : graph_.getEdges()) {
+    func(edge);
+  }
+}
+
+void LoopPlane::foreachEdgePair(
+    const std::function<void(const Graph::ConstEdge &,
+                             const Graph::ConstEdge &)> &func) const {
+  foreachEdge([this, &func](const auto &edge) {
+    Graph::ConstVertex centralVertex =
+        Graph::unwrap(graph_.getVertex(edge.getDest()));
+    Graph::ConstEdge nextEdge = Graph::unwrap(graph_.getEdge(
+        edge.getDest(),
+        centralVertex.getValue().find(edge.getSource())->second));
+    func(edge, nextEdge);
+  });
+}
+
+HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
+  HierarchicalOrdering<Loop> output;
+  std::set<std::pair<uint32_t, uint32_t>> visitedEdges;
+  for (const Graph::ConstEdge &edge : graph_.getEdges()) {
+    if (visitedEdges.find(std::pair<uint32_t, uint32_t>(
+            edge.getSource(), edge.getDest())) == visitedEdges.end()) {
+      std::set<uint32_t> vertices;
+      std::vector<BoundedLine> bounds;
+      std::vector<uint32_t> edges;
+      uint32_t source = edge.getSource();
+      uint32_t dest = edge.getDest();
+      uint32_t first = source;
+      do {
+        visitedEdges.emplace(source, dest);
+        std::optional<BoundedLine> line = BoundedLine::fromPoints(
+            assembly_->pointLookup_(source), assembly_->pointLookup_(dest));
+        assert(line);
+        bounds.push_back(*line);
+        vertices.insert(source);
+        uint32_t edgeIndex =
+            Graph::unwrap(graph_.getEdge(source, dest)).getValue();
+        edges.push_back(edgeIndex);
+        auto it = Graph::unwrap(graph_.getVertex(dest)).getValue().find(source);
+        assert(it != Graph::unwrap(graph_.getVertex(dest)).getValue().end());
+        source = dest;
+        dest = it->second;
+      } while (source != first);
+      Loop loop(vertices, bounds, edges);
+      output.insert(loop);
+    }
+  }
+  return output;
+}
+
+LoopPlane::Characteristic LoopPlane::getCharacteristic(
+    const HierarchicalOrdering<Loop> &ordering) {
+  return ordering.getOutput<LoopPlane::Loop::Characteristic>(
+      &LoopPlane::Loop::getCharacteristic);
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const LoopPlane::Characteristic &ch) {
+  os << "[";
+  for (const auto &[key, value] : ch.getData()) {
+    os << (key.isPositive ? '+' : '-') << key.size;
+    if (value.getData().size() > 0) {
+      os << ": " << value;
+    }
+    os << ", ";
+  }
+  os << "]";
+  return os;
 }
 }  // namespace stl3lasercut

@@ -2,6 +2,8 @@
 
 #include "AssemblyPlane.h"
 
+#include <stl3lasercut/RingVector.h>
+
 namespace stl3lasercut {
 AssemblyPlane::AssemblyPlane(const std::shared_ptr<const Mesh> &mesh,
                              const uint32_t id, const Projector3D &projector)
@@ -35,6 +37,16 @@ void AssemblyPlane::addTriangle(const uint32_t v0, const uint32_t v1,
   addAngle(v0, v1, v2);
   addAngle(v1, v2, v0);
   addAngle(v2, v0, v1);
+}
+
+void AssemblyPlane::addLoop(const std::vector<Vec2> &points) {
+  RingVector<Vec2> loop(points);
+  loop.foreach (
+      [this](const std::vector<Vec2> &segment) {
+        addAngle(pointLookup_(segment[0]), pointLookup_(segment[1]),
+                 pointLookup_(segment[2]));
+      },
+      3);
 }
 
 void AssemblyPlane::addAngle(const uint32_t v0, const uint32_t v1,

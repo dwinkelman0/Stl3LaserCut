@@ -33,6 +33,7 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
 
   uint32_t registerPoint(const uint32_t meshIndex, const Vec3 &point);
   void addTriangle(const uint32_t v0, const uint32_t v1, const uint32_t v2);
+  void addLoop(const std::vector<Vec2> &points);
 
  private:
   void addAngle(const uint32_t v0, const uint32_t v1, const uint32_t v2);

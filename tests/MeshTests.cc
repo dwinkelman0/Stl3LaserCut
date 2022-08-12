@@ -87,6 +87,7 @@ TEST_P(MeshTests, LoopPlane) {
       ASSERT_EQ(vertex.getValue().size(),
                 loopPlane.graph_.getEdgesToVertex(vertex).getCount());
     }
+    loopPlane.getLoops();
   }
 }
 

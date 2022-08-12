@@ -69,4 +69,6 @@ std::ostream &operator<<(std::ostream &os, const Projector3D &projector) {
      << ", offset: " << projector.offsetZ_ << ")";
   return os;
 }
+
+Projector3D Projector3D::nullProjector(unit3::z, Vec3(0, 0, 0));
 }  // namespace stl3lasercut
