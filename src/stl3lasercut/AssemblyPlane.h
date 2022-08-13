@@ -28,7 +28,7 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
       algo::DirectedGraph<algo::Unit, uint32_t, VertexConnectivityGraph>;
 
  public:
-  AssemblyPlane(const std::shared_ptr<const Mesh> &mesh, const uint32_t id,
+  AssemblyPlane(const std::shared_ptr<Mesh> &mesh, const uint32_t id,
                 const Projector3D &projector);
 
   uint32_t registerPoint(const uint32_t meshIndex, const Vec3 &point);
@@ -40,7 +40,7 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   void addEdge(const uint32_t v0, const uint32_t v1);
 
  private:
-  std::shared_ptr<const Mesh> mesh_;
+  std::shared_ptr<Mesh> mesh_;
   uint32_t id_;
   Projector3D projector_;
   Graph graph_;

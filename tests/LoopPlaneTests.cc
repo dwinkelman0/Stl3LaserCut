@@ -97,5 +97,14 @@ INSTANTIATE_TEST_SUITE_P(
             .points = {samples::negativeTriangle[1],
                        samples::negativeTriangle[0]},
             .characteristic = ch::make(true,
-                                       {{3, ch::make(false, {{3, {}}})}})}));
+                                       {{3, ch::make(false, {{3, {}}})}})},
+        LoopPlaneTestCase{SAMPLE(bubbleNegativeTriangle),
+                          .characteristic = ch::make(true, {{6, {}}})},
+        LoopPlaneTestCase{
+            SAMPLE(twoTangentNegativeTriangles),
+            .characteristic =
+                ch::make(true, {{3, ch::make(false, {{3, {}}, {3, {}}})}})},
+        LoopPlaneTestCase{
+            SAMPLE(tangentPositiveAndNegativeTriangles),
+            .characteristic = ch::make(true, {{3, {}}, {6, {}}})}));
 }  // namespace stl3lasercut

@@ -96,7 +96,7 @@ bool LoopPlane::Loop::contains(const Loop &other) const {
   return isPointContainedInBounds(bounds_, testPoint);
 }
 
-LoopPlane::LoopPlane(const std::shared_ptr<const AssemblyPlane> &assembly,
+LoopPlane::LoopPlane(const std::shared_ptr<AssemblyPlane> &assembly,
                      const uint32_t color)
     : assembly_(assembly), color_(color) {
   // Gather all unmatched edges from the AssemblyPlane
@@ -169,7 +169,7 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
       std::vector<uint32_t> edges;
       uint32_t source = edge.getSource();
       uint32_t dest = edge.getDest();
-      uint32_t first = source;
+      std::pair<uint32_t, uint32_t> first(source, dest);
       do {
         visitedEdges.emplace(source, dest);
         std::optional<BoundedLine> line = BoundedLine::fromPoints(
@@ -184,7 +184,7 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
         assert(it != Graph::unwrap(graph_.getVertex(dest)).getValue().end());
         source = dest;
         dest = it->second;
-      } while (source != first);
+      } while (std::pair<uint32_t, uint32_t>(source, dest) != first);
       Loop loop(vertices, bounds, edges);
       output.insert(loop);
     }

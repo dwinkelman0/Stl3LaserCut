@@ -55,7 +55,7 @@ class LoopPlane {
       LoopPlane::Loop::Characteristic>;
 
  public:
-  LoopPlane(const std::shared_ptr<const AssemblyPlane> &assembly,
+  LoopPlane(const std::shared_ptr<AssemblyPlane> &assembly,
             const uint32_t color);
 
   uint32_t getColor() const;
@@ -71,7 +71,7 @@ class LoopPlane {
       const HierarchicalOrdering<Loop> &ordering);
 
  private:
-  std::shared_ptr<const AssemblyPlane> assembly_;
+  std::shared_ptr<AssemblyPlane> assembly_;
   Graph graph_;
   uint32_t color_;
 };

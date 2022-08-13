@@ -87,7 +87,7 @@ std::vector<std::vector<Vec2>> negativeTriangle = {{{0, 0}, {6, 0}, {3, 6}},
                                                    {{2, 2}, {3, 4}, {4, 2}}};
 
 std::vector<std::vector<Vec2>> bubbleNegativeTriangle = {
-    {{0, 0}, {6, 0}, {3, 6}}, {{0, 0}, {3, 4}, {4, 1}}};
+    {{0, 0}, {6, 0}, {3, 6}, {0, 0}, {3, 4}, {4, 1}}};
 
 std::vector<std::vector<Vec2>> twoTangentNegativeTriangles = {
     {{0, 0}, {8, 0}, {4, 8}},
@@ -95,8 +95,7 @@ std::vector<std::vector<Vec2>> twoTangentNegativeTriangles = {
     {{4, 1}, {5, 3}, {6, 1}}};
 
 std::vector<std::vector<Vec2>> tangentPositiveAndNegativeTriangles = {
-    {{0, 0}, {6, 0}, {3, 6}},
-    {{0, 0}, {3, 4}, {4, 1}},
+    {{0, 0}, {6, 0}, {3, 6}, {0, 0}, {3, 4}, {4, 1}},
     {{0, 0}, {-1, 2}, {-2, 0}}};
 
 std::vector<std::vector<Vec2>> sandwichedTriangles = {

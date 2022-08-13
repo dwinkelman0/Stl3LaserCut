@@ -5,7 +5,7 @@
 #include <stl3lasercut/RingVector.h>
 
 namespace stl3lasercut {
-AssemblyPlane::AssemblyPlane(const std::shared_ptr<const Mesh> &mesh,
+AssemblyPlane::AssemblyPlane(const std::shared_ptr<Mesh> &mesh,
                              const uint32_t id, const Projector3D &projector)
     : mesh_(mesh), id_(id), projector_(projector), edgeIdCounter_(0) {}
 
