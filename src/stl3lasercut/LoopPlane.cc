@@ -17,6 +17,22 @@ bool LoopPlane::Loop::Characteristic::operator==(
   return std::tie(isPositive, size) == std::tie(other.isPositive, other.size);
 }
 
+std::vector<uint32_t> removeAdjacentDuplicates(
+    const std::vector<uint32_t> &vec) {
+  assert(vec.size() > 0);
+  std::vector<uint32_t> output;
+  output.push_back(vec.front());
+  for (const uint32_t item : vec) {
+    if (item != output.back()) {
+      output.push_back(item);
+    }
+  }
+  if (output.back() == output.front()) {
+    output.erase(output.end() - 1);
+  }
+  return output;
+}
+
 std::strong_ordering compare(
     const std::vector<uint32_t>::const_iterator &begin,
     const std::vector<uint32_t>::const_iterator &end,
@@ -49,12 +65,15 @@ std::vector<uint32_t> getCanonicalOrder(const std::vector<uint32_t> &vec) {
   return output;
 }
 
-LoopPlane::Loop::Loop(const std::set<uint32_t> &vertexSet,
+LoopPlane::Loop::Loop(const std::shared_ptr<const LoopPlane> &loopPlane,
                       const std::vector<BoundedLine> &bounds,
+                      const std::vector<uint32_t> &vertices,
                       const std::vector<uint32_t> &edges)
-    : vertexSet_(vertexSet),
+    : loopPlane_(loopPlane),
+      vertexSet_(vertices.begin(), vertices.end()),
       bounds_(bounds),
-      edges_(getCanonicalOrder(edges)) {}
+      vertices_(vertices),
+      edges_(getCanonicalOrder(removeAdjacentDuplicates(edges))) {}
 
 std::pair<std::partial_ordering, bool> LoopPlane::Loop::operator<=>(
     const Loop &other) const {
@@ -91,6 +110,14 @@ LoopPlane::Loop::Characteristic LoopPlane::Loop::getCharacteristic() const {
                         .size = static_cast<uint32_t>(edges_.size())};
 }
 
+std::optional<uint32_t> LoopPlane::Loop::getEdgeId(const uint32_t v0,
+                                                   const uint32_t v1) const {
+  std::optional<Graph::EdgeConstIterator> edgeIt =
+      loopPlane_->graph_.getEdge(v0, v1);
+  return edgeIt ? std::optional<uint32_t>(Graph::unwrap(edgeIt).getValue())
+                : std::nullopt;
+}
+
 bool LoopPlane::Loop::contains(const Loop &other) const {
   Vec2 testPoint = other.bounds_.front().getMidpoint();
   return isPointContainedInBounds(bounds_, testPoint);
@@ -112,26 +139,11 @@ LoopPlane::LoopPlane(const std::shared_ptr<AssemblyPlane> &assembly,
       graph_.emplaceEdge(edge.getSource(), edge.getDest()).first->getValue() =
           edge.getValue();
 
-      // Complete vertex connectivity (distinguish vertices with multiple edges)
-      const AssemblyPlane::VertexConnectivityGraph &connectivityGraph =
-          AssemblyPlane::Graph::unwrap(
-              assembly_->graph_.getVertex(edge.getDest()))
-              .getValue();
-      if (connectivityGraph.getEdgesToVertex(edge.getSource()).getCount() !=
-          0) {
-        throw std::runtime_error("This vertex is messed up.");
-      }
-      uint32_t terminalVertex = std::numeric_limits<uint32_t>::max();
-      connectivityGraph.traverseDepthFirst(
-          [&connectivityGraph, &terminalVertex](const auto &vertex) {
-            if (connectivityGraph.getEdgesFromVertex(vertex).getCount() > 1) {
-              throw std::runtime_error("This vertex is messed up.");
-            }
-            terminalVertex = vertex.getIndex();
-          },
-          [](const auto &) {}, edge.getSource());
-
-      vertexIt->getValue().emplace(edge.getSource(), terminalVertex);
+      vertexIt->getValue().emplace(
+          edge.getSource(), AssemblyPlane::Graph::unwrap(
+                                assembly_->graph_.getVertex(edge.getDest()))
+                                .getValue()
+                                .getFurthestConnection(edge.getSource()));
     }
   }
 }
@@ -164,8 +176,8 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
   for (const Graph::ConstEdge &edge : graph_.getEdges()) {
     if (visitedEdges.find(std::pair<uint32_t, uint32_t>(
             edge.getSource(), edge.getDest())) == visitedEdges.end()) {
-      std::set<uint32_t> vertices;
       std::vector<BoundedLine> bounds;
+      std::vector<uint32_t> vertices;
       std::vector<uint32_t> edges;
       uint32_t source = edge.getSource();
       uint32_t dest = edge.getDest();
@@ -176,7 +188,7 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
             assembly_->pointLookup_(source), assembly_->pointLookup_(dest));
         assert(line);
         bounds.push_back(*line);
-        vertices.insert(source);
+        vertices.push_back(source);
         uint32_t edgeIndex =
             Graph::unwrap(graph_.getEdge(source, dest)).getValue();
         edges.push_back(edgeIndex);
@@ -185,7 +197,7 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
         source = dest;
         dest = it->second;
       } while (std::pair<uint32_t, uint32_t>(source, dest) != first);
-      Loop loop(vertices, bounds, edges);
+      Loop loop(shared_from_this(), bounds, vertices, edges);
       output.insert(loop);
     }
   }
@@ -194,7 +206,7 @@ HierarchicalOrdering<LoopPlane::Loop> LoopPlane::getLoops() const {
 
 LoopPlane::Characteristic LoopPlane::getCharacteristic(
     const HierarchicalOrdering<Loop> &ordering) {
-  return ordering.getOutput<LoopPlane::Loop::Characteristic>(
+  return ordering.map<LoopPlane::Loop::Characteristic>(
       &LoopPlane::Loop::getCharacteristic);
 }
 

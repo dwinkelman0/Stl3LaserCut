@@ -10,7 +10,22 @@
 #include "SampleGeometry.h"
 
 namespace stl3lasercut {
+std::vector<uint32_t> removeAdjacentDuplicates(
+    const std::vector<uint32_t> &vec);
 std::vector<uint32_t> getCanonicalOrder(const std::vector<uint32_t> &vec);
+
+TEST(LoopPlane, RemoveAdjacentDuplicates) {
+  std::vector<uint32_t> e0 = {0, 1, 2, 3};
+  std::vector<uint32_t> e1 = {0, 1, 2, 3, 0};
+  std::vector<uint32_t> e2 = {0, 0, 0, 1, 2, 3, 0, 0, 0};
+  std::vector<uint32_t> e3 = {0, 1, 1, 2, 2, 2, 3, 3, 0};
+  std::vector<uint32_t> e4 = {1, 2, 1, 2, 1, 2};
+  ASSERT_EQ(removeAdjacentDuplicates(e0), e0);
+  ASSERT_EQ(removeAdjacentDuplicates(e1), e0);
+  ASSERT_EQ(removeAdjacentDuplicates(e2), e0);
+  ASSERT_EQ(removeAdjacentDuplicates(e3), e0);
+  ASSERT_EQ(removeAdjacentDuplicates(e4), e4);
+}
 
 TEST(LoopPlane, GetCanonicalOrder) {
   std::vector<uint32_t> e0 = {0, 1, 2, 3};

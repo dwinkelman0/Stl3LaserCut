@@ -51,21 +51,18 @@ void AssemblyPlane::addLoop(const std::vector<Vec2> &points) {
 
 void AssemblyPlane::addAngle(const uint32_t v0, const uint32_t v1,
                              const uint32_t v2) {
-  graph_.emplaceVertex(v0);
-  Graph::VertexIterator vertexIt = graph_.emplaceVertex(v1).first;
-  graph_.emplaceVertex(v2);
+  graph_.emplaceVertex(v0,
+                       VertexConnectivityGraph(shared_from_this(), v0, true));
+  Graph::VertexIterator vertexIt =
+      graph_
+          .emplaceVertex(v1,
+                         VertexConnectivityGraph(shared_from_this(), v1, true))
+          .first;
+  graph_.emplaceVertex(v2,
+                       VertexConnectivityGraph(shared_from_this(), v2, true));
   addEdge(v0, v1);
   addEdge(v1, v2);
-  VertexConnectivityGraph::VertexIterator it0 =
-      vertexIt->getValue().emplaceVertex(v0).first;
-  VertexConnectivityGraph::VertexIterator it2 =
-      vertexIt->getValue().emplaceVertex(v2).first;
-  if (vertexIt->getValue().getEdgesFromVertex(it0).getCount() > 0 ||
-      vertexIt->getValue().getEdgesToVertex(it2).getCount() > 0) {
-    throw std::runtime_error(
-        "There were connectivity edges that should not have been there.");
-  }
-  vertexIt->getValue().emplaceEdge(v0, v2);
+  vertexIt->getValue().connect(v0, v2);
 }
 
 void AssemblyPlane::addEdge(const uint32_t v0, const uint32_t v1) {

@@ -8,13 +8,15 @@
 #include <stl3lasercut/Line.h>
 
 #include <compare>
+#include <memory>
 
 namespace stl3lasercut {
 class AssemblyPlane;
 
 /** A LoopPlane is a set of loops which are guaranteed not to interfere, i.e.
  * overlap. */
-class LoopPlane {
+class LoopPlane : public std::enable_shared_from_this<LoopPlane> {
+  friend class InterferencePlane;
   FRIEND_TEST(MeshTests, LoopPlane);
 
  private:
@@ -23,6 +25,8 @@ class LoopPlane {
 
  public:
   class Loop {
+    friend class InterferencePlane;
+
    public:
     struct Characteristic {
       uint32_t isPositive;
@@ -33,20 +37,25 @@ class LoopPlane {
     };
 
    public:
-    Loop(const std::set<uint32_t> &vertexSet,
+    Loop(const std::shared_ptr<const LoopPlane> &loopPlane,
          const std::vector<BoundedLine> &bounds,
+         const std::vector<uint32_t> &vertices,
          const std::vector<uint32_t> &edges);
 
     std::pair<std::partial_ordering, bool> operator<=>(const Loop &other) const;
     bool isPositive() const;
     Characteristic getCharacteristic() const;
+    std::optional<uint32_t> getEdgeId(const uint32_t v0,
+                                      const uint32_t v1) const;
 
    private:
     bool contains(const Loop &other) const;
 
    private:
+    std::shared_ptr<const LoopPlane> loopPlane_;
     std::set<uint32_t> vertexSet_;
     std::vector<BoundedLine> bounds_;
+    std::vector<uint32_t> vertices_;
     std::vector<uint32_t> edges_;
   };
 

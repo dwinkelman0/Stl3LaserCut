@@ -60,8 +60,8 @@ TEST_P(MeshTests, AssemblyPlane) {
       ASSERT_GT(plane->graph_.getEdgesFromVertex(vertex).getCount(), 0);
       ASSERT_EQ(plane->graph_.getEdgesToVertex(vertex).getCount(),
                 plane->graph_.getEdgesFromVertex(vertex).getCount());
-      for (const AssemblyPlane::VertexConnectivityGraph &graph :
-           vertex.getValue().getConnectedComponents()) {
+      for (const VertexConnectivityGraph::Graph &graph :
+           vertex.getValue().graph_.getConnectedComponents()) {
         ASSERT_EQ(graph.getVertices().getCount(),
                   graph.getEdges().getCount() + 1);
       }
@@ -79,15 +79,15 @@ TEST_P(MeshTests, AssemblyPlane) {
 
 TEST_P(MeshTests, LoopPlane) {
   for (const auto &[projector, plane] : mesh_->planes_) {
-    LoopPlane loopPlane(plane, 0);
+    auto loopPlane = std::make_shared<LoopPlane>(plane, 0);
     for (const LoopPlane::Graph::ConstVertex &vertex :
-         loopPlane.graph_.getVertices()) {
-      ASSERT_EQ(loopPlane.graph_.getEdgesToVertex(vertex).getCount(),
-                loopPlane.graph_.getEdgesFromVertex(vertex).getCount());
+         loopPlane->graph_.getVertices()) {
+      ASSERT_EQ(loopPlane->graph_.getEdgesToVertex(vertex).getCount(),
+                loopPlane->graph_.getEdgesFromVertex(vertex).getCount());
       ASSERT_EQ(vertex.getValue().size(),
-                loopPlane.graph_.getEdgesToVertex(vertex).getCount());
+                loopPlane->graph_.getEdgesToVertex(vertex).getCount());
     }
-    loopPlane.getLoops();
+    loopPlane->getLoops();
   }
 }
 

@@ -71,12 +71,21 @@ class HierarchicalOrdering {
       items_.push_back(newPartition);
     }
 
+    void map(const std::function<void(const T &)> &func) const {
+      for (const auto &partition : items_) {
+        for (const auto &[item, level] : partition) {
+          func(item);
+          level.map(func);
+        }
+      }
+    }
+
     template <typename V>
-    Output<V> getOutput(const std::function<V(const T &)> &func) const {
+    Output<V> map(const std::function<V(const T &)> &func) const {
       Output<V> output;
       for (const auto &partition : items_) {
         for (const auto &[item, level] : partition) {
-          output.addData(func(item), level.getOutput(func));
+          output.addData(func(item), level.map(func));
         }
       }
       return output;
@@ -88,9 +97,12 @@ class HierarchicalOrdering {
 
  public:
   void insert(const T &item) { root_.insert(item); }
+  void map(const std::function<void(const T &)> &func) const {
+    return root_.map(func);
+  }
   template <typename V>
-  Output<V> getOutput(const std::function<V(const T &)> &func) const {
-    return root_.getOutput(func);
+  Output<V> map(const std::function<V(const T &)> &func) const {
+    return root_.map(func);
   }
 
  private:

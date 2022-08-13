@@ -6,6 +6,7 @@
 #include <algo/Lookup.h>
 #include <gtest/gtest.h>
 #include <stl3lasercut/Projector.h>
+#include <stl3lasercut/VertexConnectivityGraph.h>
 
 #include <memory>
 
@@ -19,11 +20,10 @@ class Mesh;
  * to a LoopPlane. */
 class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   friend class LoopPlane;
+  friend class InterferencePlane;
   FRIEND_TEST(MeshTests, AssemblyPlane);
 
  private:
-  using VertexConnectivityGraph =
-      algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;
   using Graph =
       algo::DirectedGraph<algo::Unit, uint32_t, VertexConnectivityGraph>;
 
