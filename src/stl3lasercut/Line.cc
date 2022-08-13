@@ -46,6 +46,10 @@ std::ostream &operator<<(std::ostream &os, const Line &line) {
   return os;
 }
 
+bool Line::operator<(const Line &other) const {
+  return std::tie(a_, b_, c_) < std::tie(other.a_, other.b_, other.c_);
+}
+
 Line::Line(const float a, const float b, const float c) : a_(a), b_(b), c_(c) {}
 
 Line::Line(const Vec2 &b1, const Vec2 &b2)

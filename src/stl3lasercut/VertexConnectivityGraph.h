@@ -10,6 +10,7 @@ class AssemblyPlane;
 
 class VertexConnectivityGraph {
   FRIEND_TEST(MeshTests, AssemblyPlane);
+  FRIEND_TEST(InterferenePlaneTests, Initialization);
 
  private:
   using Graph = algo::DirectedGraph<algo::Unit, algo::Unit, algo::Unit>;

@@ -20,6 +20,7 @@ class Line {
   Line getPerpendicularLineThroughPoint(const Vec2 &point) const;
   Vec2 getDirectionVector() const;
 
+  bool operator<(const Line &other) const;
   friend std::ostream &operator<<(std::ostream &os, const Line &line);
 
  protected:
