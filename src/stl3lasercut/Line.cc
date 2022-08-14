@@ -72,6 +72,25 @@ bool DirectedLine::PointComparator::operator()(const Vec2 &a,
   return cross(b - a, direction_) > 0;
 }
 
+DirectedLine::AngularComparator::AngularComparator(const DirectedLine &line)
+    : direction_(line.getDirectionVector()) {}
+
+bool DirectedLine::AngularComparator::operator()(const DirectedLine &a,
+                                                 const DirectedLine &b) const {
+  Vec2 aVec = a.getDirectionVector(), bVec = b.getDirectionVector();
+  if (cross(direction_, aVec) >= 0 && cross(direction_, bVec) >= 0) {
+    return dot(direction_, bVec) < dot(direction_, aVec);
+  } else if (cross(direction_, aVec) < 0 && cross(direction_, bVec) < 0) {
+    return dot(direction_, aVec) < dot(direction_, bVec);
+  } else if (cross(direction_, aVec) == 0 && dot(direction_, aVec) > 0) {
+    return true;
+  } else if (cross(direction_, bVec) == 0 && dot(direction_, bVec) > 0) {
+    return false;
+  } else {
+    return cross(direction_, bVec) < cross(direction_, aVec);
+  }
+}
+
 std::optional<DirectedLine> DirectedLine::fromPoints(const Vec2 &b1,
                                                      const Vec2 &b2) {
   std::optional<Line> output = Line::fromPoints(b1, b2);

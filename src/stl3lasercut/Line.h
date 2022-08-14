@@ -44,6 +44,15 @@ class DirectedLine : public Line {
     Vec2 direction_;
   };
 
+  class AngularComparator {
+   public:
+    AngularComparator(const DirectedLine &line);
+    bool operator()(const DirectedLine &a, const DirectedLine &b) const;
+
+   private:
+    Vec2 direction_;
+  };
+
   DirectedLine();
 
   static std::optional<DirectedLine> fromPoints(const Vec2 &b1, const Vec2 &b2);
