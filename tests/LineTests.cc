@@ -64,20 +64,21 @@ TEST(Line, AngularComparator) {
   DirectedLine l7 = *DirectedLine::fromPoints({0, 0}, {3, -1});
   DirectedLine l8 = *DirectedLine::fromPoints({0, 0}, {7, 1});
   DirectedLine::AngularComparator comparator(l0);
-  ASSERT_TRUE(comparator(l1, l2));
-  ASSERT_FALSE(comparator(l2, l1));
-  ASSERT_FALSE(comparator(l1, l1));
-  ASSERT_FALSE(comparator(l2, l2));
-  ASSERT_TRUE(comparator(l2, l3));
-  ASSERT_TRUE(comparator(l3, l4));
-  ASSERT_TRUE(comparator(l4, l5));
-  ASSERT_TRUE(comparator(l5, l6));
-  ASSERT_TRUE(comparator(l6, l7));
-  ASSERT_TRUE(comparator(l7, l8));
-  ASSERT_TRUE(comparator(l0, l5));
-  ASSERT_FALSE(comparator(l5, l0));
-  ASSERT_TRUE(comparator(l1, l8));
-  ASSERT_FALSE(comparator(l8, l1));
+  std::vector<DirectedLine> lines = {l0, l1, l2, l3, l4, l5, l6, l7, l8};
+  for (auto it = lines.begin(); it != lines.end(); ++it) {
+    for (auto jt = lines.begin(); jt != lines.end(); ++jt) {
+      if (it < jt) {
+        ASSERT_TRUE(comparator(*it, *jt));
+        ASSERT_FALSE(comparator(*jt, *it));
+      } else if (it > jt) {
+        ASSERT_FALSE(comparator(*it, *jt));
+        ASSERT_TRUE(comparator(*jt, *it));
+      } else {
+        ASSERT_FALSE(comparator(*it, *jt));
+        ASSERT_FALSE(comparator(*jt, *it));
+      }
+    }
+  }
 }
 
 TEST(Line, ParallelFromOffset) {
