@@ -71,8 +71,8 @@ class VertexConnectivityGraphTest : public testing::Test {
 };
 
 TEST_F(VertexConnectivityGraphTest, ConnectBasic) {
-  graph_.connect(1, 2);
-  graph_.connect(3, 4);
+  ASSERT_TRUE(graph_.connect(1, 2));
+  ASSERT_TRUE(graph_.connect(3, 4));
 
   checkComponent(1, 2);
   checkComponent(3, 2);
@@ -82,24 +82,23 @@ TEST_F(VertexConnectivityGraphTest, ConnectBasic) {
 }
 
 TEST_F(VertexConnectivityGraphTest, ConnectEqual) {
-  graph_.connect(7, 9);
-  graph_.connect(7, 9);
+  ASSERT_TRUE(graph_.connect(7, 9));
+  ASSERT_FALSE(graph_.connect(7, 9));
   checkPointsReachable({{7, true}, {9, false}});
 }
 
 TEST_F(VertexConnectivityGraphTest, AddVertexThenConnect) {
-  graph_.addVertex(2, false);
-  graph_.addVertex(2, false);
-  graph_.addVertex(2, false);
-  graph_.addVertex(3, true);
+  ASSERT_TRUE(graph_.addVertex(2, false));
+  ASSERT_FALSE(graph_.addVertex(2, false));
+  ASSERT_TRUE(graph_.addVertex(3, true));
   graph_.addVertex(6, false);
   graph_.addVertex(7, true);
   graph_.addVertex(9, true);
   checkUnconnected(5);
 
-  graph_.connect(1, 2);
-  graph_.connect(3, 4);
-  graph_.connect(5, 7);
+  ASSERT_TRUE(graph_.connect(1, 2));
+  ASSERT_TRUE(graph_.connect(3, 4));
+  ASSERT_TRUE(graph_.connect(5, 7));
 
   checkComponent(1, 2);
   checkComponent(3, 2);
@@ -111,10 +110,10 @@ TEST_F(VertexConnectivityGraphTest, AddVertexThenConnect) {
 }
 
 TEST_F(VertexConnectivityGraphTest, ConnectMergeOverlap) {
-  graph_.connect(1, 3);
-  graph_.connect(6, 8);
-  graph_.connect(2, 4);
-  graph_.connect(5, 7);
+  ASSERT_TRUE(graph_.connect(1, 3));
+  ASSERT_TRUE(graph_.connect(6, 8));
+  ASSERT_TRUE(graph_.connect(2, 4));
+  ASSERT_TRUE(graph_.connect(5, 7));
 
   checkComponent(1, 4);
   checkComponent(5, 4);
@@ -124,12 +123,12 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeOverlap) {
 }
 
 TEST_F(VertexConnectivityGraphTest, ConnectMergeTangent) {
-  graph_.connect(1, 2);
-  graph_.connect(5, 6);
-  graph_.connect(7, 8);
-  graph_.connect(1, 3);
-  graph_.connect(4, 6);
-  graph_.connect(8, 9);
+  ASSERT_TRUE(graph_.connect(1, 2));
+  ASSERT_TRUE(graph_.connect(5, 6));
+  ASSERT_TRUE(graph_.connect(7, 8));
+  ASSERT_TRUE(graph_.connect(1, 3));
+  ASSERT_TRUE(graph_.connect(4, 6));
+  ASSERT_TRUE(graph_.connect(8, 9));
 
   checkComponent(1, 3);
   checkComponent(4, 3);
@@ -139,10 +138,20 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeTangent) {
   checkPointsReachable({{7, true}, {8, true}, {8, false}, {9, false}});
 }
 
+TEST_F(VertexConnectivityGraphTest, ConnectMergeTangentSandwich) {
+  ASSERT_TRUE(graph_.connect(2, 4));
+  ASSERT_TRUE(graph_.connect(5, 8));
+  ASSERT_TRUE(graph_.connect(4, 5));
+
+  checkComponent(2, 6);
+  checkPointsReachable(
+      {{2, true}, {4, true}, {4, false}, {5, true}, {5, false}, {8, false}});
+}
+
 TEST_F(VertexConnectivityGraphTest, ConnectMergeEngulf) {
-  graph_.connect(1, 5);
-  graph_.addVertex(3, true);
-  graph_.connect(9, 6);
+  ASSERT_TRUE(graph_.connect(1, 5));
+  ASSERT_TRUE(graph_.addVertex(3, true));
+  ASSERT_TRUE(graph_.connect(9, 6));
 
   checkComponent(9, 5);
   checkPointsReachable(
@@ -150,8 +159,8 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeEngulf) {
 }
 
 TEST_F(VertexConnectivityGraphTest, ConnectMergeFullCircle) {
-  graph_.connect(1, 6);
-  graph_.connect(5, 2);
+  ASSERT_TRUE(graph_.connect(1, 6));
+  ASSERT_TRUE(graph_.connect(5, 2));
 
   checkComponent(1, 4);
   checkPointsReachable({{1, true}, {2, false}, {5, true}, {6, false}});

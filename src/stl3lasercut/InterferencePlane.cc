@@ -50,6 +50,20 @@ void InterferencePlane::addLoopPlane(
   });
 }
 
+void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
+                                            const uint32_t baseColor,
+                                            const uint32_t perpendicularColor,
+                                            const uint32_t newColor) {
+  for (const auto &[coord, logicalEdge] : edges_) {
+    if (coord.color == baseColor &&
+        coord.orientation == Orientation::PARALLEL) {
+      // Fix this to get assembly plane of corresponding edge
+      addParallelEdgeFromOffset(coord, newColor, func(assembly_, assembly_));
+    }
+  }
+  fixVertexConnectivity();
+}
+
 void InterferencePlane::addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
                                                  const uint32_t color) {
   RingVector<uint32_t> ring(loop.vertices_);
@@ -88,16 +102,13 @@ void InterferencePlane::addEdge(const uint32_t v0, const uint32_t v1,
     assert(pointSet.find(v0) != pointSet.end() &&
            pointSet.find(v1) != pointSet.end());
   } else {
-    std::optional<BoundedLine> line = BoundedLine::fromPoints(
+    std::optional<DirectedLine> line = DirectedLine::fromPoints(
         assembly_->pointLookup_(v0), assembly_->pointLookup_(v1));
     assert(line);
     auto it = groupMap_.find(*line);
     group =
-        it != groupMap_.end()
-            ? it->second
-            : groupMap_
-                  .emplace(*line, std::make_shared<EdgeGroup>(assembly_, *line))
-                  .first->second;
+        groupMap_.emplace(*line, std::make_shared<EdgeGroup>(assembly_, *line))
+            .first->second;
     group->edges.insert(coord);
     group->points.insert(v0);
     group->points.insert(v1);
@@ -124,14 +135,61 @@ void InterferencePlane::addAngle(const uint32_t v0, const uint32_t v1,
       .first->second.first = e0;
 }
 
-void InterferencePlane::computeInterference(const EdgeCoordinate &coord,
-                                            const uint32_t color) {
+void InterferencePlane::addParallelEdgeFromOffset(const EdgeCoordinate &coord,
+                                                  const uint32_t newColor,
+                                                  const float offset) {
   auto it = edges_.find(coord);
-  assert(it != edges_.end());
-  for (const auto &[otherCoord, logicalEdge] : edges_) {
-    if (otherCoord.color == color) {
-      findAndInsertIntersection(it->second.group, logicalEdge.group);
+  if (it != edges_.end()) {
+    EdgeCoordinate newCoord = {.id = coord.id,
+                               .color = newColor,
+                               .orientation = Orientation::PARALLEL};
+    DirectedLine offsetLine =
+        it->second.group->line.getParallelLineWithOffset(offset);
+    std::shared_ptr<EdgeGroup> group =
+        groupMap_
+            .emplace(offsetLine,
+                     std::make_shared<EdgeGroup>(assembly_, offsetLine))
+            .first->second;
+    group->edges.insert(newCoord);
+    edges_.emplace(newCoord,
+                   LogicalEdge{.group = group,
+                               .orientationClass = OrientationClass::PARALLEL});
+    computeInterferenceWithAdjacentEdges(newCoord);
+    computeInterferenceWithColor(newCoord, newColor);
+    computeInterferenceWithColor(newCoord, coord.color);
+  }
+}
+
+void InterferencePlane::computeInterferenceWithAdjacentEdges(
+    const EdgeCoordinate &coord) {
+  auto adjacencyIt = parallelEdgeAdjacency_.find(coord.id);
+  assert(adjacencyIt != parallelEdgeAdjacency_.end());
+  const auto &[lower, upper] = adjacencyIt->second;
+  std::set<std::shared_ptr<EdgeGroup>> groups;
+  for (const auto &[other, logicalEdge] : edges_) {
+    if (other.id == lower || other.id == upper) {
+      groups.insert(logicalEdge.group);
     }
+  }
+  auto edgeIt = edges_.find(coord);
+  assert(edgeIt != edges_.end());
+  for (const std::shared_ptr<EdgeGroup> &group : groups) {
+    findAndInsertIntersection(edgeIt->second.group, group);
+  }
+}
+
+void InterferencePlane::computeInterferenceWithColor(
+    const EdgeCoordinate &coord, const uint32_t color) {
+  std::set<std::shared_ptr<EdgeGroup>> groups;
+  for (const auto &[other, logicalEdge] : edges_) {
+    if (other.color == color) {
+      groups.insert(logicalEdge.group);
+    }
+  }
+  auto edgeIt = edges_.find(coord);
+  assert(edgeIt != edges_.end());
+  for (const std::shared_ptr<EdgeGroup> &group : groups) {
+    findAndInsertIntersection(edgeIt->second.group, group);
   }
 }
 
@@ -144,13 +202,12 @@ void InterferencePlane::findAndInsertIntersection(
     bool vertexIsNew = addPoint(newVertex);
 
     // Splice the new vertex in the edge groups
-    const auto [aLower, aUpper] = insertVertexInEdgeGroup(a, newVertex);
-    const auto [bLower, bUpper] = insertVertexInEdgeGroup(b, newVertex);
+    insertVertexInEdgeGroup(a, newVertex);
+    insertVertexInEdgeGroup(b, newVertex);
   }
 }
 
-std::pair<std::optional<uint32_t>, std::optional<uint32_t>>
-InterferencePlane::insertVertexInEdgeGroup(
+void InterferencePlane::insertVertexInEdgeGroup(
     const std::shared_ptr<EdgeGroup> &group, const uint32_t vertex) {
   const auto [it, success] = group->points.emplace(vertex);
   if (success) {
@@ -160,58 +217,55 @@ InterferencePlane::insertVertexInEdgeGroup(
       // The vertex was inserted at the front
       if (upper != group->points.end()) {
         graph_.emplaceEdge(*it, *upper).first->getValue() = group;
-        Graph::unwrap(graph_.getVertex(vertex))
-            .getValue()
-            .addVertex(*upper, false);
-        return {std::nullopt, *upper};
-      } else {
-        return {std::nullopt, std::nullopt};
       }
     } else {
       auto lower = std::next(it, -1);
       if (upper == group->points.end()) {
         // The vertex was inserted at the back
-        graph_.emplaceEdge(*lower, *it);
-        Graph::unwrap(graph_.getVertex(vertex))
-            .getValue()
-            .addVertex(*lower, true);
-        return {*lower, std::nullopt};
+        graph_.emplaceEdge(*lower, *it).first->getValue() = group;
       } else {
         // The vertex was inserted between two vertices
-        assert(lower != group->points.begin() && upper != group->points.end());
         graph_.eraseEdge(Graph::unwrap(graph_.getEdge(*lower, *upper)));
-        graph_.emplaceEdge(*lower, *it);
-        graph_.emplaceEdge(*it, *upper);
-        Graph::unwrap(graph_.getVertex(vertex))
-            .getValue()
-            .connect(*lower, *upper);
-
-        // Fix vertex connectivity graph of adjacent vertices
-        Graph::unwrap(graph_.getVertex(*lower))
-            .getValue()
-            .rename(*upper, vertex);
-        Graph::unwrap(graph_.getVertex(*upper))
-            .getValue()
-            .rename(*lower, vertex);
-        Graph::unwrap(graph_.getVertex(vertex))
-            .getValue()
-            .connect(*lower, *upper);
-
-        return {*lower, *upper};
+        graph_.emplaceEdge(*lower, *it).first->getValue() = group;
+        graph_.emplaceEdge(*it, *upper).first->getValue() = group;
       }
     }
-  } else {
-    auto upper = std::next(it, 1);
-    if (it == group->points.begin()) {
-      return {std::nullopt, upper == group->points.end()
-                                ? std::nullopt
-                                : std::optional<uint32_t>(*upper)};
-    } else {
-      auto lower = std::next(it, -1);
-      return {*lower, upper == group->points.end()
-                          ? std::nullopt
-                          : std::optional<uint32_t>(*upper)};
+  }
+}
+
+void InterferencePlane::fixVertexConnectivity() {
+  // Fix up connectivity graph using continuity and adjacency rules
+  for (Graph::Vertex &vertex : graph_.getVertices()) {
+    for (const auto &incomingEdge : graph_.getEdgesToVertex(vertex)) {
+      for (const auto &outgoingEdge : graph_.getEdgesFromVertex(vertex)) {
+        if (areEdgesContinuous(incomingEdge.getValue(),
+                               outgoingEdge.getValue())) {
+          vertex.getValue().connect(incomingEdge.getSource(),
+                                    outgoingEdge.getDest());
+        }
+      }
+      vertex.getValue().addVertex(incomingEdge.getSource(), true);
+    }
+    for (const auto &outgoingEdge : graph_.getEdgesFromVertex(vertex)) {
+      vertex.getValue().addVertex(outgoingEdge.getDest(), false);
     }
   }
+}
+
+bool InterferencePlane::areEdgesContinuous(
+    const std::shared_ptr<EdgeGroup> &incoming,
+    const std::shared_ptr<EdgeGroup> &outgoing) const {
+  std::set<uint32_t> validEdges;
+  for (const EdgeCoordinate coord : incoming->edges) {
+    validEdges.insert(coord.id);
+    auto it = parallelEdgeAdjacency_.find(coord.id);
+    assert(it != parallelEdgeAdjacency_.end());
+    validEdges.insert(it->second.second);
+  }
+  std::set<uint32_t> successorEdges;
+  for (const EdgeCoordinate coord : outgoing->edges) {
+    successorEdges.insert(coord.id);
+  }
+  return !areSetsDisjoint(validEdges, successorEdges);
 }
 }  // namespace stl3lasercut

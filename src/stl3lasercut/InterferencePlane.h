@@ -19,6 +19,7 @@ class LoopPlane;
 /** An InterferencePlane performs offsets and dynamic intersection creation. */
 class InterferencePlane {
   FRIEND_TEST(InterferenePlaneTests, Initialization);
+  FRIEND_TEST(InterferenePlaneTests, ConstantOffset);
 
  private:
   enum class Orientation { PARALLEL, RIGHT_PERPENDICULAR, LEFT_PERPENDICULAR };
@@ -92,17 +93,25 @@ class InterferencePlane {
                const uint32_t color);
   void addAngle(const uint32_t v0, const uint32_t v1, const uint32_t v2,
                 const uint32_t e0, const uint32_t e1);
-  void addParallelEdgeFromOffset(const EdgeCoordinate &coord,
+
+  void addParallelEdgeFromOffset(const EdgeCoordinate &coord, uint32_t newColor,
                                  const float offset);
   void addPerpendicularEdgeThroughPoint(const EdgeCoordinate &coord,
                                         const uint32_t point,
                                         const Orientation orientation);
-  void computeInterference(const EdgeCoordinate &coord, const uint32_t color);
+
+  void computeInterferenceWithAdjacentEdges(const EdgeCoordinate &coord);
+  void computeInterferenceWithColor(const EdgeCoordinate &coord,
+                                    const uint32_t color);
+
   void findAndInsertIntersection(const std::shared_ptr<EdgeGroup> &a,
                                  const std::shared_ptr<EdgeGroup> &b);
-  std::pair<std::optional<uint32_t>, std::optional<uint32_t>>
-  insertVertexInEdgeGroup(const std::shared_ptr<EdgeGroup> &group,
-                          const uint32_t vertex);
+  void insertVertexInEdgeGroup(const std::shared_ptr<EdgeGroup> &group,
+                               const uint32_t vertex);
+
+  void fixVertexConnectivity();
+  bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
+                          const std::shared_ptr<EdgeGroup> &outgoing) const;
 
  private:
   std::shared_ptr<AssemblyPlane> assembly_;

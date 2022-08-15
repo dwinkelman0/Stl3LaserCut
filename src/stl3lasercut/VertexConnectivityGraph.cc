@@ -94,7 +94,7 @@ MultiVertexConnectivityGraph::MultiVertexConnectivityGraph(
     const uint32_t centralVertex)
     : assembly_(assemblyPlane), centralVertex_(centralVertex) {}
 
-void MultiVertexConnectivityGraph::connect(const uint32_t v0,
+bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
                                            const uint32_t v1) {
   // Get rid of unconnected vertices
   unconnected_.erase({v0, true});
@@ -106,12 +106,18 @@ void MultiVertexConnectivityGraph::connect(const uint32_t v0,
   for (auto it = components_.begin(), end = components_.end(); it != end;
        ++it) {
     if (componentContainsPoint(it, v0) || componentContainsPoint(it, v1) ||
-        it->second.key_comp()({v1, false}, {v0, true})) {
+        it->second.key_comp()(v1, v0)) {
       intersectingComponents.push_back(it);
       if (componentContainsPoint(it, v0)) {
         // Incoming edge is contained in the component
         assert(!existingRoot);
         existingRoot = it;
+
+        // Check if this operation will do anything
+        if (it->second.find({v0, true}) != it->second.end() &&
+            it->second.find({v1, false}) != it->second.end()) {
+          return false;
+        }
       }
     }
   }
@@ -142,19 +148,21 @@ void MultiVertexConnectivityGraph::connect(const uint32_t v0,
       unconnected_.erase(oldIt);
     }
   }
+
+  return true;
 }
 
-void MultiVertexConnectivityGraph::addVertex(const uint32_t v0,
+bool MultiVertexConnectivityGraph::addVertex(const uint32_t v0,
                                              const bool isIncoming) {
   // Check whether it intersects any components
   for (auto it = components_.begin(), end = components_.end(); it != end;
        ++it) {
     if (componentContainsPoint(it, v0)) {
       it->second.emplace(v0, isIncoming);
-      return;
+      return true;
     }
   }
-  unconnected_.emplace(v0, isIncoming);
+  return unconnected_.emplace(v0, isIncoming).second;
 }
 
 void MultiVertexConnectivityGraph::rename(const uint32_t v0,

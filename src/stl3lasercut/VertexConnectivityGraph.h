@@ -60,8 +60,8 @@ class MultiVertexConnectivityGraph {
       const std::shared_ptr<const AssemblyPlane> &assemblyPlane,
       const uint32_t centralVertex);
 
-  void connect(const uint32_t v0, const uint32_t v1);
-  void addVertex(const uint32_t v0, const bool isIncoming);
+  bool connect(const uint32_t v0, const uint32_t v1);
+  bool addVertex(const uint32_t v0, const bool isIncoming);
   void rename(const uint32_t v0, const uint32_t v1);
   ReachablePointSet getReachablePoints(const uint32_t v0);
 

@@ -38,7 +38,7 @@ class InterferenePlaneTests
     for (const std::vector<Vec2> &loop : GetParam().points) {
       assemblyPlane_->addLoop(loop);
     }
-    loopPlane_ = std::make_shared<LoopPlane>(assemblyPlane_, DEFAULT_COLOR);
+    loopPlane_ = std::make_shared<LoopPlane>(assemblyPlane_, BASE_COLOR);
     interferencePlane_.addLoopPlane(loopPlane_);
   }
 
@@ -47,7 +47,8 @@ class InterferenePlaneTests
   std::shared_ptr<LoopPlane> loopPlane_;
   InterferencePlane interferencePlane_;
 
-  const uint32_t DEFAULT_COLOR = 3;
+  const uint32_t BASE_COLOR = 3;
+  const uint32_t OFFSET_COLOR = 4;
 };
 
 TEST_P(InterferenePlaneTests, Initialization) {
@@ -71,12 +72,36 @@ TEST_P(InterferenePlaneTests, Initialization) {
   ASSERT_EQ(interferencePlane_.groupMap_.size(), GetParam().numEdgeGroups);
 }
 
+TEST_P(InterferenePlaneTests, ConstantOffset) {
+  interferencePlane_.applyOffsetFunction(
+      [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
+      OFFSET_COLOR);
+  std::cout << interferencePlane_.graph_.getVertices().getCount() << " vertices"
+            << std::endl;
+  for (const InterferencePlane::Graph::ConstVertex &vertex :
+       interferencePlane_.graph_.getVertices()) {
+    std::cout << vertex.getIndex() << " "
+              << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
+              << vertex.getValue() << std::endl;
+  }
+  for (const InterferencePlane::Graph::ConstEdge &edge :
+       interferencePlane_.graph_.getEdges()) {
+    std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
+    std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
+              std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
+                  std::cout, ", "));
+    std::cout << std::endl;
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(
     InterferenePlane, InterferenePlaneTests,
     testing::Values(
         InterferencePlaneTestCase{SAMPLE(acuteTriangle), .numEdgeGroups = 3},
         InterferencePlaneTestCase{SAMPLE(rightTriangle), .numEdgeGroups = 3},
         InterferencePlaneTestCase{SAMPLE(obtuseTriangle), .numEdgeGroups = 3},
+        InterferencePlaneTestCase{SAMPLE(straightAnglePolygon),
+                                  .numEdgeGroups = 3},
         InterferencePlaneTestCase{SAMPLE(disjointTriangles),
                                   .numEdgeGroups = 6},
         InterferencePlaneTestCase{SAMPLE(twoTangentTriangles),
