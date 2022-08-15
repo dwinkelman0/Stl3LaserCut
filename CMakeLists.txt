@@ -17,7 +17,7 @@ enable_testing ()
 
 FetchContent_Declare (algo
     GIT_REPOSITORY https://github.com/dwinkelman0/Algo
-    GIT_TAG v0.4
+    GIT_TAG v0.5.1
     CMAKE_ARGS -D DISABLE_TESTS=1
 )
 FetchContent_MakeAvailable (algo)
@@ -25,6 +25,7 @@ FetchContent_GetProperties (algo)
 
 include_directories (src)
 include_directories (${googletest_SOURCE_DIR}/googletest/include)
+include_directories (${googletest_SOURCE_DIR}/googlemock/include)
 include_directories (${algo_SOURCE_DIR}/src)
 
 file (GLOB LIB_SOURCES src/stl3lasercut/*.cc)
@@ -37,7 +38,7 @@ target_link_libraries (${Target_client} ${Target_lib})
 
 file (GLOB TESTS_SOURCES tests/*.cc)
 add_executable (${Target_tests} ${TESTS_SOURCES})
-target_link_libraries (${Target_tests} ${Target_lib} gtest_main)
+target_link_libraries (${Target_tests} ${Target_lib} gtest_main gmock_main)
 
 include (GoogleTest)
 gtest_discover_tests (${Target_tests})

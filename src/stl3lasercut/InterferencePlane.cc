@@ -80,8 +80,10 @@ void InterferencePlane::addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
       3);
 }
 
-void InterferencePlane::addPoint(const uint32_t index) {
-  graph_.emplaceVertex(index, VertexConnectivityGraph(assembly_, index, false));
+bool InterferencePlane::addPoint(const uint32_t index) {
+  return graph_
+      .emplaceVertex(index, MultiVertexConnectivityGraph(assembly_, index))
+      .second;
 }
 
 void InterferencePlane::addEdge(const uint32_t v0, const uint32_t v1,
@@ -132,5 +134,96 @@ void InterferencePlane::addAngle(const uint32_t v0, const uint32_t v1,
       .id = e1, .color = color, .orientation = Orientation::PARALLEL});
   assert(it0 != edges_.end());
   it1->second.lower = e0;
+}
+
+void InterferencePlane::computeInterference(const EdgeCoordinate &coord,
+                                            const uint32_t color) {
+  auto it = edges_.find(coord);
+  assert(it != edges_.end());
+  for (const auto &[otherCoord, logicalEdge] : edges_) {
+    if (otherCoord.color == color) {
+      findAndInsertIntersection(it->second.group, logicalEdge.group);
+    }
+  }
+}
+
+void InterferencePlane::findAndInsertIntersection(
+    const std::shared_ptr<EdgeGroup> &a, const std::shared_ptr<EdgeGroup> &b) {
+  std::optional<Vec2> intersection = a->line.getIntersection(b->line);
+  if (intersection) {
+    // Create a new vertex in the assembly
+    uint32_t newVertex = assembly_->pointLookup_(*intersection);
+    bool vertexIsNew = addPoint(newVertex);
+
+    // Splice the new vertex in the edge groups
+    const auto [aLower, aUpper] = insertVertexInEdgeGroup(a, newVertex);
+    const auto [bLower, bUpper] = insertVertexInEdgeGroup(b, newVertex);
+  }
+}
+
+std::pair<std::optional<uint32_t>, std::optional<uint32_t>>
+InterferencePlane::insertVertexInEdgeGroup(
+    const std::shared_ptr<EdgeGroup> &group, const uint32_t vertex) {
+  const auto [it, success] = group->points.emplace(vertex);
+  if (success) {
+    // New vertex inserted, get bounding vertices
+    auto upper = std::next(it, 1);
+    if (it == group->points.begin()) {
+      // The vertex was inserted at the front
+      if (upper != group->points.end()) {
+        graph_.emplaceEdge(*it, *upper).first->getValue() = group;
+        Graph::unwrap(graph_.getVertex(vertex))
+            .getValue()
+            .addVertex(*upper, false);
+        return {std::nullopt, *upper};
+      } else {
+        return {std::nullopt, std::nullopt};
+      }
+    } else {
+      auto lower = std::next(it, -1);
+      if (upper == group->points.end()) {
+        // The vertex was inserted at the back
+        graph_.emplaceEdge(*lower, *it);
+        Graph::unwrap(graph_.getVertex(vertex))
+            .getValue()
+            .addVertex(*lower, true);
+        return {*lower, std::nullopt};
+      } else {
+        // The vertex was inserted between two vertices
+        assert(lower != group->points.begin() && upper != group->points.end());
+        graph_.eraseEdge(Graph::unwrap(graph_.getEdge(*lower, *upper)));
+        graph_.emplaceEdge(*lower, *it);
+        graph_.emplaceEdge(*it, *upper);
+        Graph::unwrap(graph_.getVertex(vertex))
+            .getValue()
+            .connect(*lower, *upper);
+
+        // Fix vertex connectivity graph of adjacent vertices
+        Graph::unwrap(graph_.getVertex(*lower))
+            .getValue()
+            .rename(*upper, vertex);
+        Graph::unwrap(graph_.getVertex(*upper))
+            .getValue()
+            .rename(*lower, vertex);
+        Graph::unwrap(graph_.getVertex(vertex))
+            .getValue()
+            .connect(*lower, *upper);
+
+        return {*lower, *upper};
+      }
+    }
+  } else {
+    auto upper = std::next(it, 1);
+    if (it == group->points.begin()) {
+      return {std::nullopt, upper == group->points.end()
+                                ? std::nullopt
+                                : std::optional<uint32_t>(*upper)};
+    } else {
+      auto lower = std::next(it, -1);
+      return {*lower, upper == group->points.end()
+                          ? std::nullopt
+                          : std::optional<uint32_t>(*upper)};
+    }
+  }
 }
 }  // namespace stl3lasercut

@@ -22,10 +22,11 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   friend class LoopPlane;
   friend class InterferencePlane;
   FRIEND_TEST(MeshTests, AssemblyPlane);
+  friend class VertexConnectivityGraphTest;
 
  private:
   using Graph =
-      algo::DirectedGraph<algo::Unit, uint32_t, VertexConnectivityGraph>;
+      algo::DirectedGraph<algo::Unit, uint32_t, ChainedVertexConnectivityGraph>;
 
  public:
   AssemblyPlane(const std::shared_ptr<Mesh> &mesh, const uint32_t id,
@@ -34,6 +35,7 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   uint32_t registerPoint(const uint32_t meshIndex, const Vec3 &point);
   void addTriangle(const uint32_t v0, const uint32_t v1, const uint32_t v2);
   void addLoop(const std::vector<Vec2> &points);
+  Vec2 getPoint(const uint32_t index) const;
 
  private:
   void addAngle(const uint32_t v0, const uint32_t v1, const uint32_t v2);

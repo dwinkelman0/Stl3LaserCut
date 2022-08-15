@@ -60,7 +60,7 @@ TEST_P(MeshTests, AssemblyPlane) {
       ASSERT_GT(plane->graph_.getEdgesFromVertex(vertex).getCount(), 0);
       ASSERT_EQ(plane->graph_.getEdgesToVertex(vertex).getCount(),
                 plane->graph_.getEdgesFromVertex(vertex).getCount());
-      for (const VertexConnectivityGraph::Graph &graph :
+      for (const ChainedVertexConnectivityGraph::Graph &graph :
            vertex.getValue().graph_.getConnectedComponents()) {
         ASSERT_EQ(graph.getVertices().getCount(),
                   graph.getEdges().getCount() + 1);
