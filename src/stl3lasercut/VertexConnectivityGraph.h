@@ -78,5 +78,6 @@ class MultiVertexConnectivityGraph {
   uint32_t centralVertex_;
   std::set<std::pair<uint32_t, bool>> unconnected_;
   ComponentMap components_;
+  bool fullCircle_;
 };
 }  // namespace stl3lasercut

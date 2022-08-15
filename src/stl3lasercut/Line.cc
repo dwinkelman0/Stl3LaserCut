@@ -100,6 +100,12 @@ bool DirectedLine::AngularComparator<RightHanded>::operator()(
   }
 }
 
+template <bool RightHanded>
+bool DirectedLine::AngularComparator<RightHanded>::isZero(
+    const DirectedLine &a) const {
+  return a.getDirectionVector() == direction_;
+}
+
 template class DirectedLine::AngularComparator<true>;
 template class DirectedLine::AngularComparator<false>;
 

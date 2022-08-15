@@ -61,6 +61,18 @@ class VertexConnectivityGraphTest : public testing::Test {
     }
   }
 
+  void checkPointsReachableFromEverywhere(const std::vector<uint32_t> &incoming,
+                                          const std::set<uint32_t> &outgoing) {
+    for (const uint32_t a : incoming) {
+      MultiVertexConnectivityGraph::ReachablePointSet expected(
+          MultiVertexConnectivityGraph::AngularComparator(assembly_, 0, a));
+      expected.insert(outgoing.begin(), outgoing.end());
+      MultiVertexConnectivityGraph::ReachablePointSet reachable =
+          graph_.getReachablePoints(a);
+      ASSERT_THAT(reachable, ::testing::ContainerEq(expected));
+    }
+  }
+
   void checkUnconnected(const uint32_t numVertices) {
     ASSERT_EQ(graph_.unconnected_.size(), numVertices);
   }
@@ -158,12 +170,20 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeEngulf) {
       {{9, true}, {1, true}, {3, true}, {5, false}, {6, false}});
 }
 
-TEST_F(VertexConnectivityGraphTest, ConnectMergeFullCircle) {
+TEST_F(VertexConnectivityGraphTest, ConnectMergeTangentFullCircle) {
+  ASSERT_TRUE(graph_.connect(1, 5));
+  ASSERT_TRUE(graph_.connect(5, 1));
+
+  checkComponent(1, 4);
+  checkPointsReachableFromEverywhere({1, 5}, {1, 5});
+}
+
+TEST_F(VertexConnectivityGraphTest, ConnectMergeOverlapFullCircle) {
   ASSERT_TRUE(graph_.connect(1, 6));
   ASSERT_TRUE(graph_.connect(5, 2));
 
   checkComponent(1, 4);
-  checkPointsReachable({{1, true}, {2, false}, {5, true}, {6, false}});
+  checkPointsReachableFromEverywhere({1, 5}, {2, 6});
 }
 
 TEST_F(VertexConnectivityGraphTest, Rename) {

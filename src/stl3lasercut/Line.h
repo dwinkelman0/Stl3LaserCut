@@ -53,6 +53,7 @@ class DirectedLine : public Line {
    public:
     AngularComparator(const DirectedLine &line);
     bool operator()(const DirectedLine &a, const DirectedLine &b) const;
+    bool isZero(const DirectedLine &a) const;
 
    private:
     Vec2 direction_;

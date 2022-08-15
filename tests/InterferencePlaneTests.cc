@@ -76,22 +76,23 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
   interferencePlane_.applyOffsetFunction(
       [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
       OFFSET_COLOR);
-  std::cout << interferencePlane_.graph_.getVertices().getCount() << " vertices"
-            << std::endl;
-  for (const InterferencePlane::Graph::ConstVertex &vertex :
-       interferencePlane_.graph_.getVertices()) {
-    std::cout << vertex.getIndex() << " "
-              << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
-              << vertex.getValue() << std::endl;
-  }
-  for (const InterferencePlane::Graph::ConstEdge &edge :
-       interferencePlane_.graph_.getEdges()) {
-    std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
-    std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
-              std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
-                  std::cout, ", "));
-    std::cout << std::endl;
-  }
+  // std::cout << interferencePlane_.graph_.getVertices().getCount() << "
+  // vertices"
+  //           << std::endl;
+  // for (const InterferencePlane::Graph::ConstVertex &vertex :
+  //      interferencePlane_.graph_.getVertices()) {
+  //   std::cout << vertex.getIndex() << " "
+  //             << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
+  //             << vertex.getValue() << std::endl;
+  // }
+  // for (const InterferencePlane::Graph::ConstEdge &edge :
+  //      interferencePlane_.graph_.getEdges()) {
+  //   std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
+  //   std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
+  //             std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
+  //                 std::cout, ", "));
+  //   std::cout << std::endl;
+  // }
 }
 
 INSTANTIATE_TEST_SUITE_P(

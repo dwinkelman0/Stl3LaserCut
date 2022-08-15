@@ -70,7 +70,12 @@ bool MultiVertexConnectivityGraph::AngularComparator::operator()(
 bool MultiVertexConnectivityGraph::AngularComparator::operator()(
     const std::pair<uint32_t, bool> &a,
     const std::pair<uint32_t, bool> &b) const {
-  if (!this->operator()(a.first, b.first)) {
+  // Check if this line is the special case that is greater than everything else
+  if (comparator_.isZero(getLineFromPoint(a.first)) && !a.second) {
+    return false;
+  } else if (comparator_.isZero(getLineFromPoint(b.first)) && !b.second) {
+    return true;
+  } else if (!this->operator()(a.first, b.first)) {
     if (!this->operator()(b.first, a.first)) {
       return b.second < a.second;
     } else {
@@ -92,7 +97,9 @@ DirectedLine MultiVertexConnectivityGraph::AngularComparator::getLineFromPoint(
 MultiVertexConnectivityGraph::MultiVertexConnectivityGraph(
     const std::shared_ptr<const AssemblyPlane> &assemblyPlane,
     const uint32_t centralVertex)
-    : assembly_(assemblyPlane), centralVertex_(centralVertex) {}
+    : assembly_(assemblyPlane),
+      centralVertex_(centralVertex),
+      fullCircle_(false) {}
 
 bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
                                            const uint32_t v1) {
@@ -117,6 +124,11 @@ bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
         if (it->second.find({v0, true}) != it->second.end() &&
             it->second.find({v1, false}) != it->second.end()) {
           return false;
+        }
+
+        // Check for wrap-around
+        if (it->second.key_comp()(v1, v0)) {
+          fullCircle_ = true;
         }
       }
     }
@@ -174,15 +186,24 @@ void MultiVertexConnectivityGraph::rename(const uint32_t v0,
 MultiVertexConnectivityGraph::ReachablePointSet
 MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) {
   ReachablePointSet output(AngularComparator(assembly_, centralVertex_, v0));
-  for (const auto [index, vertices] : components_) {
-    auto searchIt = vertices.find({v0, true});
-    if (searchIt != vertices.end()) {
-      for (auto it = searchIt, end = vertices.end(); it != end; ++it) {
-        if (!it->second) {
-          output.insert(it->first);
-        }
+  if (fullCircle_) {
+    assert(components_.size() == 1 && unconnected_.size() == 0);
+    for (const auto &[vertex, isIncoming] : components_.begin()->second) {
+      if (!isIncoming) {
+        output.insert(vertex);
       }
-      return output;
+    }
+  } else {
+    for (const auto &[index, vertices] : components_) {
+      auto searchIt = vertices.find({v0, true});
+      if (searchIt != vertices.end()) {
+        for (auto it = searchIt, end = vertices.end(); it != end; ++it) {
+          if (!it->second) {
+            output.insert(it->first);
+          }
+        }
+        return output;
+      }
     }
   }
   return output;
