@@ -63,7 +63,7 @@ TEST(Line, AngularComparator) {
   DirectedLine l6 = *DirectedLine::fromPoints({0, 0}, {1, -2});
   DirectedLine l7 = *DirectedLine::fromPoints({0, 0}, {3, -1});
   DirectedLine l8 = *DirectedLine::fromPoints({0, 0}, {7, 1});
-  DirectedLine::AngularComparator comparator(l0);
+  DirectedLine::AngularComparator<true> comparator(l0);
   std::vector<DirectedLine> lines = {l0, l1, l2, l3, l4, l5, l6, l7, l8};
   for (auto it = lines.begin(); it != lines.end(); ++it) {
     for (auto jt = lines.begin(); jt != lines.end(); ++jt) {

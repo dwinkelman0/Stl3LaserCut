@@ -44,6 +44,11 @@ class DirectedLine : public Line {
     Vec2 direction_;
   };
 
+  /** Compare directed lines based on their angle within [0, 2pi). 0 is
+   * established by passing a reference line in the constructor. If RightHanded
+   * is true, then a > b if the CCW angle of a relative to the reference is
+   * greater than the CCW angle of b relative to the reference. */
+  template <bool RightHanded>
   class AngularComparator {
    public:
     AngularComparator(const DirectedLine &line);

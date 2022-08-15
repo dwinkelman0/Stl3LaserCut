@@ -33,6 +33,26 @@ uint32_t ChainedVertexConnectivityGraph::getFurthestConnection(
   return terminalVertex;
 }
 
+std::ostream &operator<<(std::ostream &os,
+                         const ChainedVertexConnectivityGraph &graph) {
+  os << "(";
+  for (const auto subgraph : graph.graph_.getConnectedComponents()) {
+    for (const auto vertex : subgraph.getVertices()) {
+      if (subgraph.getEdgesToVertex(vertex).getCount() == 0) {
+        subgraph.traverseDepthFirst(
+            [&os](const ChainedVertexConnectivityGraph::Graph::ConstVertex &v) {
+              os << v.getIndex() << " -> ";
+            },
+            [](const auto &) {}, vertex);
+        break;
+      }
+    }
+    os << ", ";
+  }
+  os << ")";
+  return os;
+}
+
 MultiVertexConnectivityGraph::AngularComparator::AngularComparator(
     std::shared_ptr<const AssemblyPlane> assemblyPlane,
     const uint32_t centralVertex, const uint32_t basisVertex)
@@ -43,7 +63,8 @@ MultiVertexConnectivityGraph::AngularComparator::AngularComparator(
 
 bool MultiVertexConnectivityGraph::AngularComparator::operator()(
     const uint32_t a, const uint32_t b) const {
-  return comparator_(getLineFromPoint(a), getLineFromPoint(b));
+  bool res = comparator_(getLineFromPoint(a), getLineFromPoint(b));
+  return res;
 }
 
 bool MultiVertexConnectivityGraph::AngularComparator::operator()(
@@ -86,11 +107,9 @@ void MultiVertexConnectivityGraph::connect(const uint32_t v0,
        ++it) {
     if (componentContainsPoint(it, v0) || componentContainsPoint(it, v1) ||
         it->second.key_comp()({v1, false}, {v0, true})) {
-      std::cout << "Found overlapping" << std::endl;
       intersectingComponents.push_back(it);
       if (componentContainsPoint(it, v0)) {
         // Incoming edge is contained in the component
-        std::cout << "Found existing root" << std::endl;
         assert(!existingRoot);
         existingRoot = it;
       }
@@ -151,17 +170,27 @@ MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) {
     auto searchIt = vertices.find({v0, true});
     if (searchIt != vertices.end()) {
       for (auto it = searchIt, end = vertices.end(); it != end; ++it) {
-        std::cout << it->first << "(" << (it->second ? "incoming" : "outgoing")
-                  << "), ";
         if (!it->second) {
           output.insert(it->first);
         }
       }
-      std::cout << std::endl;
       return output;
     }
   }
   return output;
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const MultiVertexConnectivityGraph &graph) {
+  os << "(central = " << graph.centralVertex_ << ", ";
+  for (const auto &[index, vertices] : graph.components_) {
+    for (const auto &[vertex, isIncoming] : vertices) {
+      os << vertex << "." << (isIncoming ? "in" : "out") << " -> ";
+    }
+    os << ", ";
+  }
+  os << ")";
+  return os;
 }
 
 bool MultiVertexConnectivityGraph::componentContainsPoint(

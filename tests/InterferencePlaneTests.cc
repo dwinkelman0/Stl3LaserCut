@@ -58,10 +58,6 @@ TEST_P(InterferenePlaneTests, Initialization) {
     ASSERT_EQ(edge.getValue()->edges.begin()->orientation,
               InterferencePlane::Orientation::PARALLEL);
   }
-  for (const InterferencePlane::Graph::ConstVertex &vertex :
-       interferencePlane_.graph_.getVertices()) {
-    // ASSERT_GT(vertex.getValue().graph_.getVertices().getCount(), 0);
-  }
   for (const auto &[coord, logicalEdge] : interferencePlane_.edges_) {
     ASSERT_EQ(logicalEdge.orientationClass,
               InterferencePlane::OrientationClass::PARALLEL);

@@ -19,6 +19,9 @@ class ChainedVertexConnectivityGraph {
   void connect(const uint32_t v0, const uint32_t v1);
   uint32_t getFurthestConnection(const uint32_t v0) const;
 
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const ChainedVertexConnectivityGraph &graph);
+
  private:
   Graph graph_;
 };
@@ -42,7 +45,7 @@ class MultiVertexConnectivityGraph {
    private:
     std::shared_ptr<const AssemblyPlane> assembly_;
     Vec2 centralPoint_;
-    DirectedLine::AngularComparator comparator_;
+    DirectedLine::AngularComparator<false> comparator_;
   };
 
   using ComponentMap =
@@ -61,6 +64,9 @@ class MultiVertexConnectivityGraph {
   void addVertex(const uint32_t v0, const bool isIncoming);
   void rename(const uint32_t v0, const uint32_t v1);
   ReachablePointSet getReachablePoints(const uint32_t v0);
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const MultiVertexConnectivityGraph &graph);
 
  private:
   bool componentContainsPoint(const ComponentMap::const_iterator &it,

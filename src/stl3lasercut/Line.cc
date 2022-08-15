@@ -72,12 +72,21 @@ bool DirectedLine::PointComparator::operator()(const Vec2 &a,
   return cross(b - a, direction_) > 0;
 }
 
-DirectedLine::AngularComparator::AngularComparator(const DirectedLine &line)
-    : direction_(line.getDirectionVector()) {}
+Vec2 reflect(const Vec2 &vec) { return {std::get<0>(vec), -std::get<1>(vec)}; }
 
-bool DirectedLine::AngularComparator::operator()(const DirectedLine &a,
-                                                 const DirectedLine &b) const {
-  Vec2 aVec = a.getDirectionVector(), bVec = b.getDirectionVector();
+template <bool RightHanded>
+DirectedLine::AngularComparator<RightHanded>::AngularComparator(
+    const DirectedLine &line)
+    : direction_(RightHanded ? line.getDirectionVector()
+                             : reflect(line.getDirectionVector())) {}
+
+template <bool RightHanded>
+bool DirectedLine::AngularComparator<RightHanded>::operator()(
+    const DirectedLine &a, const DirectedLine &b) const {
+  Vec2 aVec =
+      RightHanded ? a.getDirectionVector() : reflect(a.getDirectionVector());
+  Vec2 bVec =
+      RightHanded ? b.getDirectionVector() : reflect(b.getDirectionVector());
   if (cross(direction_, aVec) >= 0 && cross(direction_, bVec) >= 0) {
     return dot(direction_, bVec) < dot(direction_, aVec);
   } else if (cross(direction_, aVec) < 0 && cross(direction_, bVec) < 0) {
@@ -90,6 +99,9 @@ bool DirectedLine::AngularComparator::operator()(const DirectedLine &a,
     return cross(direction_, bVec) < cross(direction_, aVec);
   }
 }
+
+template class DirectedLine::AngularComparator<true>;
+template class DirectedLine::AngularComparator<false>;
 
 std::optional<DirectedLine> DirectedLine::fromPoints(const Vec2 &b1,
                                                      const Vec2 &b2) {

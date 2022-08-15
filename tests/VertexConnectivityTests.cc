@@ -13,21 +13,22 @@ class VertexConnectivityGraphTest : public testing::Test {
         std::make_shared<AssemblyPlane>(nullptr, 0, Projector3D::nullProjector);
     assembly->pointLookup_({2, 2});
 
-    // Points are ordered clockwise
-    // i.e. increasing by DirectedLine::AngularComparator
-    assembly->pointLookup_({3, 2});
-    assembly->pointLookup_({5, 3});
-    assembly->pointLookup_({5, 4});
-    assembly->pointLookup_({2, 3});
-    assembly->pointLookup_({1, 4});
-    assembly->pointLookup_({1, 3});
-    assembly->pointLookup_({0, 2});
-    assembly->pointLookup_({0, 0});
-    assembly->pointLookup_({2, 0});
+    // Points are ordered counterclockwise so that the lines they generate are
+    // increasing by DirectedLine::AngularComparator<false>
     assembly->pointLookup_({6, 1});
-    assembly->pointLookup_({4, 2});
-    assembly->pointLookup_({8, 4});
+    assembly->pointLookup_({2, 0});
+    assembly->pointLookup_({0, 0});
+    assembly->pointLookup_({0, 2});
+    assembly->pointLookup_({1, 3});
+    assembly->pointLookup_({1, 4});
+    assembly->pointLookup_({2, 3});
+    assembly->pointLookup_({5, 4});
+    assembly->pointLookup_({5, 3});
+    assembly->pointLookup_({3, 2});
+
     assembly->pointLookup_({8, 6});
+    assembly->pointLookup_({8, 4});
+    assembly->pointLookup_({4, 2});
     return assembly;
   }
 
@@ -80,7 +81,15 @@ TEST_F(VertexConnectivityGraphTest, ConnectBasic) {
   checkUnconnected(0);
 }
 
+TEST_F(VertexConnectivityGraphTest, ConnectEqual) {
+  graph_.connect(7, 9);
+  graph_.connect(7, 9);
+  checkPointsReachable({{7, true}, {9, false}});
+}
+
 TEST_F(VertexConnectivityGraphTest, AddVertexThenConnect) {
+  graph_.addVertex(2, false);
+  graph_.addVertex(2, false);
   graph_.addVertex(2, false);
   graph_.addVertex(3, true);
   graph_.addVertex(6, false);
@@ -117,18 +126,17 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeOverlap) {
 TEST_F(VertexConnectivityGraphTest, ConnectMergeTangent) {
   graph_.connect(1, 2);
   graph_.connect(5, 6);
-  graph_.connect(7, 9);
+  graph_.connect(7, 8);
   graph_.connect(1, 3);
   graph_.connect(4, 6);
-  graph_.connect(7, 9);
+  graph_.connect(8, 9);
 
   checkComponent(1, 3);
   checkComponent(4, 3);
-  checkComponent(7, 2);
+  checkComponent(7, 4);
   checkPointsReachable({{1, true}, {2, false}, {3, false}});
   checkPointsReachable({{4, true}, {5, true}, {6, false}});
-  checkPointsReachable({{7, true}, {9, false}});
-  checkUnconnected(0);
+  checkPointsReachable({{7, true}, {8, true}, {8, false}, {9, false}});
 }
 
 TEST_F(VertexConnectivityGraphTest, ConnectMergeEngulf) {
@@ -139,6 +147,14 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeEngulf) {
   checkComponent(9, 5);
   checkPointsReachable(
       {{9, true}, {1, true}, {3, true}, {5, false}, {6, false}});
+}
+
+TEST_F(VertexConnectivityGraphTest, ConnectMergeFullCircle) {
+  graph_.connect(1, 6);
+  graph_.connect(5, 2);
+
+  checkComponent(1, 4);
+  checkPointsReachable({{1, true}, {2, false}, {5, true}, {6, false}});
 }
 
 TEST_F(VertexConnectivityGraphTest, Rename) {
