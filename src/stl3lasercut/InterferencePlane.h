@@ -66,15 +66,7 @@ class InterferencePlane {
   struct LogicalEdge {
     std::shared_ptr<EdgeGroup> group;
     OrientationClass orientationClass;
-    uint32_t edgeId;
-    uint32_t lower,
-        upper; /** If orientationClass is PARALLEL, then these represent ids of
-                  adjacent edges; if orientationClass is PERPENDICULAR, then
-                  these represent colors of edges with same id. */
-
-    friend std::ostream &operator<<(std::ostream &os, const LogicalEdge &edge);
   };
-  friend std::ostream &operator<<(std::ostream &os, const LogicalEdge &edge);
 
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<EdgeGroup>,
                                     MultiVertexConnectivityGraph>;
@@ -99,7 +91,7 @@ class InterferencePlane {
   void addEdge(const uint32_t v0, const uint32_t v1, const uint32_t edgeId,
                const uint32_t color);
   void addAngle(const uint32_t v0, const uint32_t v1, const uint32_t v2,
-                const uint32_t e0, const uint32_t e1, const uint32_t color);
+                const uint32_t e0, const uint32_t e1);
   void addParallelEdgeFromOffset(const EdgeCoordinate &coord,
                                  const float offset);
   void addPerpendicularEdgeThroughPoint(const EdgeCoordinate &coord,
@@ -117,5 +109,10 @@ class InterferencePlane {
   Graph graph_;
   std::map<EdgeCoordinate, LogicalEdge> edges_;
   std::map<DirectedLine, std::shared_ptr<EdgeGroup>> groupMap_;
+  std::map<uint32_t, std::pair<uint32_t, uint32_t>>
+      parallelEdgeAdjacency_; /** Maps an edge ID to the (lower, upper) adjacent
+                                 edge IDs. */
+  std::map<uint32_t, uint32_t> colorAdjacency_; /** Maps a color to the color
+                                                   from which it is derived. */
 };
 }  // namespace stl3lasercut

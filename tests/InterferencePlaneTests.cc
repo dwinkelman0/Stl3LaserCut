@@ -61,10 +61,12 @@ TEST_P(InterferenePlaneTests, Initialization) {
   for (const auto &[coord, logicalEdge] : interferencePlane_.edges_) {
     ASSERT_EQ(logicalEdge.orientationClass,
               InterferencePlane::OrientationClass::PARALLEL);
-    ASSERT_NE(logicalEdge.lower, std::numeric_limits<uint32_t>::max());
-    ASSERT_NE(logicalEdge.upper, std::numeric_limits<uint32_t>::max());
     ASSERT_GE(logicalEdge.group->edges.size(), 1);
     ASSERT_GE(logicalEdge.group->points.size(), 2);
+    auto it = interferencePlane_.parallelEdgeAdjacency_.find(coord.id);
+    ASSERT_NE(it, interferencePlane_.parallelEdgeAdjacency_.end());
+    ASSERT_LT(it->second.first, std::numeric_limits<uint32_t>::max());
+    ASSERT_LT(it->second.second, std::numeric_limits<uint32_t>::max());
   }
   ASSERT_EQ(interferencePlane_.groupMap_.size(), GetParam().numEdgeGroups);
 }
