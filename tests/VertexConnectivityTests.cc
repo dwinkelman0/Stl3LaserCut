@@ -36,24 +36,24 @@ class VertexConnectivityGraphTest : public testing::Test {
   VertexConnectivityGraphTest()
       : assembly_(makeAssemblyPlane()), graph_(assembly_, 0) {}
 
-  void checkComponent(const uint32_t vertex, const uint32_t numVertices) {
+  void checkComponent(const uint32_t vertex, const uint32_t numVertices) const {
     auto it = graph_.components_.find(vertex);
     ASSERT_NE(it, graph_.components_.end()) << "vertex " << vertex;
     ASSERT_EQ(it->second.size(), numVertices) << "vertex " << vertex;
   }
 
-  void checkPointsReachable(
-      const std::vector<std::pair<uint32_t, bool>> &points) {
+  template <bool IsForward>
+  void checkPointsReachableGeneric(
+      const std::vector<std::pair<uint32_t, bool>> &points) const {
     for (auto it = points.begin(), end = points.end(); it != end; ++it) {
-      if (it->second) {
+      if (!IsForward ^ it->second) {
         std::vector<uint32_t> outgoing;
         for (auto jt = it; jt != end; ++jt) {
-          if (!jt->second) {
+          if (IsForward ^ jt->second) {
             outgoing.push_back(jt->first);
           }
         }
-        MultiVertexConnectivityGraph::ReachablePointSet reachableSet =
-            graph_.getReachablePoints(it->first);
+        auto reachableSet = graph_.getReachablePoints<IsForward>(it->first);
         std::vector<uint32_t> reachable(reachableSet.begin(),
                                         reachableSet.end());
         ASSERT_THAT(reachable, ::testing::ContainerEq(outgoing));
@@ -61,19 +61,35 @@ class VertexConnectivityGraphTest : public testing::Test {
     }
   }
 
-  void checkPointsReachableFromEverywhere(const std::vector<uint32_t> &incoming,
-                                          const std::set<uint32_t> &outgoing) {
-    for (const uint32_t a : incoming) {
-      MultiVertexConnectivityGraph::ReachablePointSet expected(
-          MultiVertexConnectivityGraph::AngularComparator(assembly_, 0, a));
-      expected.insert(outgoing.begin(), outgoing.end());
-      MultiVertexConnectivityGraph::ReachablePointSet reachable =
-          graph_.getReachablePoints(a);
+  void checkPointsReachable(
+      const std::vector<std::pair<uint32_t, bool>> &points) const {
+    checkPointsReachableGeneric<true>(points);
+    auto reversed(points);
+    std::reverse(reversed.begin(), reversed.end());
+    checkPointsReachableGeneric<false>(reversed);
+  }
+
+  template <bool IsForward>
+  void checkPointsReachableFromEverywhereGeneric(
+      const std::set<uint32_t> &input, const std::set<uint32_t> &output) const {
+    for (const uint32_t a : input) {
+      std::set<uint32_t,
+               MultiVertexConnectivityGraph::AngularComparator<IsForward>>
+          expected(MultiVertexConnectivityGraph::AngularComparator<IsForward>(
+              assembly_, 0, a));
+      expected.insert(output.begin(), output.end());
+      auto reachable = graph_.getReachablePoints<IsForward>(a);
       ASSERT_THAT(reachable, ::testing::ContainerEq(expected));
     }
   }
 
-  void checkUnconnected(const uint32_t numVertices) {
+  void checkPointsReachableFromEverywhere(const std::set<uint32_t> &incoming,
+                                          const std::set<uint32_t> &outgoing) {
+    checkPointsReachableFromEverywhereGeneric<true>(incoming, outgoing);
+    checkPointsReachableFromEverywhereGeneric<false>(outgoing, incoming);
+  }
+
+  void checkUnconnected(const uint32_t numVertices) const {
     ASSERT_EQ(graph_.unconnected_.size(), numVertices);
   }
 

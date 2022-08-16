@@ -30,6 +30,7 @@ class MultiVertexConnectivityGraph {
   friend class VertexConnectivityGraphTest;
 
  private:
+  template <bool IsForward>
   class AngularComparator {
    public:
     /** Must be constructed from an outgoing edge. */
@@ -45,15 +46,17 @@ class MultiVertexConnectivityGraph {
    private:
     std::shared_ptr<const AssemblyPlane> assembly_;
     Vec2 centralPoint_;
-    DirectedLine::AngularComparator<false> comparator_;
+    DirectedLine::AngularComparator<!IsForward> comparator_;
   };
 
   using ComponentMap =
       std::map<uint32_t,
-               std::set<std::pair<uint32_t, bool>, AngularComparator>>;
+               std::set<std::pair<uint32_t, bool>, AngularComparator<true>>>;
 
  public:
-  using ReachablePointSet = std::set<uint32_t, AngularComparator>;
+  using ForwardReachablePointSet = std::set<uint32_t, AngularComparator<true>>;
+  using BackwardReachablePointSet =
+      std::set<uint32_t, AngularComparator<false>>;
 
  public:
   MultiVertexConnectivityGraph(
@@ -63,7 +66,11 @@ class MultiVertexConnectivityGraph {
   bool connect(const uint32_t v0, const uint32_t v1);
   bool addVertex(const uint32_t v0, const bool isIncoming);
   void rename(const uint32_t v0, const uint32_t v1);
-  ReachablePointSet getReachablePoints(const uint32_t v0);
+  template <bool IsForward>
+  std::set<uint32_t, AngularComparator<IsForward>> getReachablePoints(
+      const uint32_t v0) const;
+  ForwardReachablePointSet getForwardReachablePoints(const uint32_t v0) const;
+  BackwardReachablePointSet getBackwardReachablePoints(const uint32_t v0) const;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const MultiVertexConnectivityGraph &graph);

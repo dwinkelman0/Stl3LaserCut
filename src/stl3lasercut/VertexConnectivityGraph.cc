@@ -53,7 +53,8 @@ std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-MultiVertexConnectivityGraph::AngularComparator::AngularComparator(
+template <bool IsForward>
+MultiVertexConnectivityGraph::AngularComparator<IsForward>::AngularComparator(
     std::shared_ptr<const AssemblyPlane> assemblyPlane,
     const uint32_t centralVertex, const uint32_t basisVertex)
     : assembly_(assemblyPlane),
@@ -61,13 +62,15 @@ MultiVertexConnectivityGraph::AngularComparator::AngularComparator(
       comparator_(*DirectedLine::fromPoints(assembly_->getPoint(basisVertex),
                                             centralPoint_)) {}
 
-bool MultiVertexConnectivityGraph::AngularComparator::operator()(
+template <bool IsForward>
+bool MultiVertexConnectivityGraph::AngularComparator<IsForward>::operator()(
     const uint32_t a, const uint32_t b) const {
   bool res = comparator_(getLineFromPoint(a), getLineFromPoint(b));
   return res;
 }
 
-bool MultiVertexConnectivityGraph::AngularComparator::operator()(
+template <bool IsForward>
+bool MultiVertexConnectivityGraph::AngularComparator<IsForward>::operator()(
     const std::pair<uint32_t, bool> &a,
     const std::pair<uint32_t, bool> &b) const {
   // Check if this line is the special case that is greater than everything else
@@ -86,13 +89,18 @@ bool MultiVertexConnectivityGraph::AngularComparator::operator()(
   }
 }
 
-DirectedLine MultiVertexConnectivityGraph::AngularComparator::getLineFromPoint(
+template <bool IsForward>
+DirectedLine
+MultiVertexConnectivityGraph::AngularComparator<IsForward>::getLineFromPoint(
     const uint32_t vertex) const {
   std::optional<DirectedLine> line =
       DirectedLine::fromPoints(assembly_->getPoint(vertex), centralPoint_);
   assert(line);
   return *line;
 }
+
+template class MultiVertexConnectivityGraph::AngularComparator<true>;
+template class MultiVertexConnectivityGraph::AngularComparator<false>;
 
 MultiVertexConnectivityGraph::MultiVertexConnectivityGraph(
     const std::shared_ptr<const AssemblyPlane> &assemblyPlane,
@@ -136,13 +144,11 @@ bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
 
   // Merge everything
   ComponentMap::iterator root =
-      existingRoot
-          ? *existingRoot
-          : components_
-                .emplace(v0,
-                         std::set<std::pair<uint32_t, bool>, AngularComparator>(
-                             AngularComparator(assembly_, centralVertex_, v0)))
-                .first;
+      existingRoot ? *existingRoot
+                   : components_
+                         .emplace(v0, AngularComparator<true>(
+                                          assembly_, centralVertex_, v0))
+                         .first;
   for (const auto it : intersectingComponents) {
     if (!existingRoot || existingRoot && it != *existingRoot) {
       root->second.insert(it->second.begin(), it->second.end());
@@ -183,22 +189,26 @@ void MultiVertexConnectivityGraph::rename(const uint32_t v0,
   rename(v0, v1, true);
 }
 
-MultiVertexConnectivityGraph::ReachablePointSet
-MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) {
-  ReachablePointSet output(AngularComparator(assembly_, centralVertex_, v0));
+template <bool IsForward>
+std::set<uint32_t, MultiVertexConnectivityGraph::AngularComparator<IsForward>>
+MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) const {
+  std::set<uint32_t, AngularComparator<IsForward>> output(
+      AngularComparator<IsForward>(assembly_, centralVertex_, v0));
   if (fullCircle_) {
     assert(components_.size() == 1 && unconnected_.size() == 0);
     for (const auto &[vertex, isIncoming] : components_.begin()->second) {
-      if (!isIncoming) {
+      if (IsForward ^ isIncoming) {
         output.insert(vertex);
       }
     }
   } else {
     for (const auto &[index, vertices] : components_) {
-      auto searchIt = vertices.find({v0, true});
+      auto searchIt = vertices.find({v0, IsForward});
       if (searchIt != vertices.end()) {
-        for (auto it = searchIt, end = vertices.end(); it != end; ++it) {
-          if (!it->second) {
+        for (auto it = IsForward ? searchIt : vertices.begin(),
+                  end = IsForward ? vertices.end() : searchIt;
+             it != end; ++it) {
+          if (IsForward ^ it->second) {
             output.insert(it->first);
           }
         }
@@ -207,6 +217,18 @@ MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) {
     }
   }
   return output;
+}
+
+MultiVertexConnectivityGraph::ForwardReachablePointSet
+MultiVertexConnectivityGraph::getForwardReachablePoints(
+    const uint32_t v0) const {
+  return getReachablePoints<true>(v0);
+}
+
+MultiVertexConnectivityGraph::BackwardReachablePointSet
+MultiVertexConnectivityGraph::getBackwardReachablePoints(
+    const uint32_t v0) const {
+  return getReachablePoints<false>(v0);
 }
 
 std::ostream &operator<<(std::ostream &os,
