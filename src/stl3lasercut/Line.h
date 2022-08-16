@@ -59,6 +59,11 @@ class DirectedLine : public Line {
     Vec2 direction_;
   };
 
+  class ParallelComparator {
+   public:
+    bool operator()(const DirectedLine &a, const DirectedLine &b) const;
+  };
+
   DirectedLine();
 
   static std::optional<DirectedLine> fromPoints(const Vec2 &b1, const Vec2 &b2);
@@ -66,6 +71,7 @@ class DirectedLine : public Line {
   DirectedLine getParallelLineWithOffset(const float offset) const;
   DirectedLine getParallelLineThroughPoint(const Vec2 &point) const;
   float getAngle(const DirectedLine &other) const;
+  void isParallel(const DirectedLine &other) const;
 
  private:
   DirectedLine(const Line &line);

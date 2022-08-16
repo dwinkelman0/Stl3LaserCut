@@ -109,6 +109,14 @@ bool DirectedLine::AngularComparator<RightHanded>::isZero(
 template class DirectedLine::AngularComparator<true>;
 template class DirectedLine::AngularComparator<false>;
 
+bool DirectedLine::ParallelComparator::operator()(const DirectedLine &a,
+                                                  const DirectedLine &b) const {
+  if (a.getDirectionVector() != b.getDirectionVector()) {
+    throw std::runtime_error("Lines are not parallel.");
+  }
+  return a.c_ < b.c_;
+}
+
 std::optional<DirectedLine> DirectedLine::fromPoints(const Vec2 &b1,
                                                      const Vec2 &b2) {
   std::optional<Line> output = Line::fromPoints(b1, b2);

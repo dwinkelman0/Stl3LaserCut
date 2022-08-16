@@ -81,6 +81,16 @@ TEST(Line, AngularComparator) {
   }
 }
 
+TEST(Line, ParallelComparator) {
+  DirectedLine l0 = *DirectedLine::fromPoints({0, 0}, {4, 5});
+  DirectedLine l1 = *DirectedLine::fromPoints({0, 3}, {4, 8});
+  DirectedLine l2 = *DirectedLine::fromPoints({0, 0}, {4, 6});
+  DirectedLine::ParallelComparator comparator;
+  ASSERT_TRUE(comparator(l0, l1));
+  ASSERT_FALSE(comparator(l1, l0));
+  ASSERT_THROW({ comparator(l0, l2); }, std::runtime_error);
+}
+
 TEST(Line, ParallelFromOffset) {
   DirectedLine baseLine = *DirectedLine::fromPoints({0, 0}, {2, 1});
   DirectedLine l0 = baseLine.getParallelLineWithOffset(std::sqrt(5));
