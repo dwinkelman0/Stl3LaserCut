@@ -211,7 +211,8 @@ MultiVertexConnectivityGraph::getReachablePoints(const uint32_t v0) {
 
 std::ostream &operator<<(std::ostream &os,
                          const MultiVertexConnectivityGraph &graph) {
-  os << "(central = " << graph.centralVertex_ << ", ";
+  os << "(central = " << graph.centralVertex_
+     << ", full circle = " << (graph.fullCircle_ ? "true" : "false") << ", ";
   for (const auto &[index, vertices] : graph.components_) {
     for (const auto &[vertex, isIncoming] : vertices) {
       os << vertex << "." << (isIncoming ? "in" : "out") << " -> ";

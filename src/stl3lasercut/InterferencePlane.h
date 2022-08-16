@@ -22,12 +22,21 @@ class InterferencePlane {
   FRIEND_TEST(InterferenePlaneTests, ConstantOffset);
 
  private:
-  enum class Orientation { PARALLEL, RIGHT_PERPENDICULAR, LEFT_PERPENDICULAR };
+  enum class Orientation {
+    PARALLEL,
+    INCOMING_PERPENDICULAR,
+    OUTGOING_PERPENDICULAR
+  };
 
-  struct EdgeCoordinate {
+  class EdgeCoordinate {
+   public:
     uint32_t id;
     uint32_t color;
     Orientation orientation;
+
+    EdgeCoordinate(const uint32_t id, const uint32_t color,
+                   const Orientation orientation)
+        : id(id), color(color), orientation(orientation) {}
 
     bool operator<(const EdgeCoordinate &other) const;
 
@@ -66,6 +75,16 @@ class InterferencePlane {
   };
   friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
 
+  struct KnownIntersectionsComparator {
+   public:
+    bool operator()(const std::pair<EdgeCoordinate, EdgeCoordinate> &a,
+                    const std::pair<EdgeCoordinate, EdgeCoordinate> &b) const;
+
+   private:
+    static std::pair<EdgeCoordinate, EdgeCoordinate> getCanonicalOrder(
+        const std::pair<EdgeCoordinate, EdgeCoordinate> &a);
+  };
+
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<EdgeGroup>,
                                     MultiVertexConnectivityGraph>;
 
@@ -80,7 +99,8 @@ class InterferencePlane {
   void addLoopPlane(const std::shared_ptr<LoopPlane> &loopPlane);
   void applyOffsetFunction(const OffsetFunction &func, const uint32_t baseColor,
                            const uint32_t perpendicularColor,
-                           const uint32_t newColor);
+                           const uint32_t newColor,
+                           const bool calculateInterference);
 
  private:
   void addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
@@ -89,22 +109,34 @@ class InterferencePlane {
   void addEdge(const uint32_t v0, const uint32_t v1, const uint32_t edgeId,
                const uint32_t color);
   void addAngle(const uint32_t v0, const uint32_t v1, const uint32_t v2,
-                const uint32_t e0, const uint32_t e1);
+                const uint32_t e0, const uint32_t e1, const uint32_t color);
 
   void addParallelEdgeFromOffset(const EdgeCoordinate &coord, uint32_t newColor,
-                                 const float offset);
-  void addPerpendicularEdgeThroughPoint(const EdgeCoordinate &coord,
-                                        const uint32_t point,
-                                        const Orientation orientation);
+                                 const float offset,
+                                 const bool calculateInterference);
+  void addPerpendicularEdgesAtIntersection(const uint32_t incoming,
+                                           const uint32_t outgoing,
+                                           const uint32_t baseColor,
+                                           const uint32_t perpendicularColor,
+                                           const uint32_t newColor,
+                                           const bool calculateInterference);
+  void addPerpendicularEdgeThroughPoint(const uint32_t vertex, bool isIncoming,
+                                        const uint32_t id,
+                                        const uint32_t baseColor,
+                                        const uint32_t newColor,
+                                        const bool calculateInterference);
 
   void computeInterferenceWithAdjacentEdges(const EdgeCoordinate &coord);
   void computeInterferenceWithColor(const EdgeCoordinate &coord,
                                     const uint32_t color);
 
-  void findAndInsertIntersection(const std::shared_ptr<EdgeGroup> &a,
-                                 const std::shared_ptr<EdgeGroup> &b);
+  void findAndInsertGroupIntersection(const std::shared_ptr<EdgeGroup> &a,
+                                      const std::shared_ptr<EdgeGroup> &b);
   void insertVertexInEdgeGroup(const std::shared_ptr<EdgeGroup> &group,
                                const uint32_t vertex);
+  std::optional<uint32_t> findGroupIntersection(
+      const std::shared_ptr<EdgeGroup> &a,
+      const std::shared_ptr<EdgeGroup> &b) const;
 
   void fixVertexConnectivity();
   bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
@@ -120,5 +152,11 @@ class InterferencePlane {
                                  edge IDs. */
   std::map<uint32_t, uint32_t> colorAdjacency_; /** Maps a color to the color
                                                    from which it is derived. */
+  std::map<std::pair<EdgeCoordinate, EdgeCoordinate>, uint32_t,
+           KnownIntersectionsComparator>
+      knownIntersections_; /** Keep track of known intersections to help when
+                              two adjacent edges belong to the same group. Not
+                              meant to be exhaustive because intersections can
+                              be inferred in other ways in most cases. */
 };
 }  // namespace stl3lasercut

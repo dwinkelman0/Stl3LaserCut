@@ -48,7 +48,8 @@ class InterferenePlaneTests
   InterferencePlane interferencePlane_;
 
   const uint32_t BASE_COLOR = 3;
-  const uint32_t OFFSET_COLOR = 4;
+  const uint32_t INTERMEDIATE_COLOR = 4;
+  const uint32_t OFFSET_COLOR = 5;
 };
 
 TEST_P(InterferenePlaneTests, Initialization) {
@@ -73,8 +74,12 @@ TEST_P(InterferenePlaneTests, Initialization) {
 TEST_P(InterferenePlaneTests, ConstantOffset) {
   interferencePlane_.applyOffsetFunction(
       [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
-      OFFSET_COLOR);
-  std::cout << interferencePlane_.graph_.getVertices().getCount()
+      INTERMEDIATE_COLOR, false);
+  interferencePlane_.applyOffsetFunction(
+      [](const auto &, const auto &) { return -1; }, INTERMEDIATE_COLOR,
+      BASE_COLOR, OFFSET_COLOR, true);
+  std::cout << interferencePlane_.groupMap_.size() << " groups, "
+            << interferencePlane_.graph_.getVertices().getCount()
             << " vertices, " << interferencePlane_.graph_.getEdges().getCount()
             << " edges" << std::endl;
   for (const InterferencePlane::Graph::ConstVertex &vertex :
@@ -83,10 +88,8 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
               << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
               << vertex.getValue() << std::endl;
   }
-  for (const InterferencePlane::Graph::ConstEdge &edge :
-       interferencePlane_.graph_.getEdges()) {
-    std::cout << edge.getSource() << " -> " << edge.getDest() << ": "
-              << *edge.getValue() << std::endl;
+  for (const auto &[line, group] : interferencePlane_.groupMap_) {
+    std::cout << *group << std::endl;
   }
 }
 

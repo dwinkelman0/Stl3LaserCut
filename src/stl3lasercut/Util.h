@@ -40,6 +40,22 @@ std::ostream &operator<<(std::ostream &os, const Vec3 &vec);
 float getPolygonArea(const std::vector<Vec2> &points);
 
 template <typename T>
+typename T::const_iterator expectToFind(const T &container,
+                                        const typename T::key_type &key) {
+  typename T::const_iterator it = container.find(key);
+  assert(it != container.end());
+  return it;
+}
+
+template <typename T>
+typename T::iterator expectToFind(T &container,
+                                  const typename T::key_type &key) {
+  typename T::iterator it = container.find(key);
+  assert(it != container.end());
+  return it;
+}
+
+template <typename T>
 bool areSetsDisjoint(const std::set<T> &set1, const std::set<T> &set2) {
   if (set1.empty() || set2.empty()) return true;
 
