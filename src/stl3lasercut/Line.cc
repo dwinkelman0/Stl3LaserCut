@@ -27,10 +27,6 @@ std::optional<Vec2> Line::getIntersection(const Line &other) const {
   }
 }
 
-Line Line::getPerpendicularLineThroughPoint(const Vec2 &point) const {
-  return Line(b_, -a_, b_ * std::get<0>(point) - a_ * std::get<1>(point));
-}
-
 Vec2 Line::getDirectionVector() const { return Vec2(a_, b_); }
 
 std::ostream &operator<<(std::ostream &os, const Line &line) {
@@ -130,8 +126,13 @@ DirectedLine DirectedLine::getParallelLineWithOffset(const float offset) const {
 
 DirectedLine DirectedLine::getParallelLineThroughPoint(
     const Vec2 &point) const {
-  return DirectedLine(a_, b_,
-                      a_ * std::get<0>(point) + b_ * std::get<1>(point));
+  return DirectedLine(a_, b_, dot(getDirectionVector(), point));
+}
+
+DirectedLine DirectedLine::getPerpendicularLineThroughPoint(
+    const Vec2 &point, const bool isRightHanded) const {
+  Vec2 vec = isRightHanded ? Vec2(-b_, a_) : Vec2(b_, -a_);
+  return DirectedLine(std::get<0>(vec), std::get<1>(vec), dot(vec, point));
 }
 
 float DirectedLine::getAngle(const DirectedLine &other) const {
@@ -156,37 +157,21 @@ BoundedLine::BoundedLine() : DirectedLine(), lower_(0, 0), upper_(0, 0) {}
 namespace {
 struct BoundVisitor {
  public:
-  BoundVisitor(const Line &line) : line_(line) {}
+  BoundVisitor(const DirectedLine &line) : line_(line) {}
 
   std::optional<Vec2> operator()(const Vec2 &point) const {
-    return line_.getPerpendicularLineThroughPoint(point).getIntersection(line_);
+    return line_.getPerpendicularLineThroughPoint(point, true)
+        .getIntersection(line_);
   }
 
-  std::optional<Vec2> operator()(const Line &line) const {
+  std::optional<Vec2> operator()(const DirectedLine &line) const {
     return line_.getIntersection(line);
   }
 
  private:
-  Line line_;
+  DirectedLine line_;
 };
 }  // namespace
-
-std::optional<BoundedLine> BoundedLine::fromUndirectedLine(const Line &line,
-                                                           const Bound &lower,
-                                                           const Bound &upper) {
-  BoundVisitor visitor(line);
-  std::optional<Vec2> lowerBound = std::visit(visitor, lower);
-  std::optional<Vec2> upperBound = std::visit(visitor, upper);
-  if (lowerBound && upperBound) {
-    std::optional<DirectedLine> directedLine =
-        DirectedLine::fromPoints(*lowerBound, *upperBound);
-    return directedLine ? std::optional<BoundedLine>(BoundedLine(
-                              *directedLine, *lowerBound, *upperBound))
-                        : std::nullopt;
-  } else {
-    return std::nullopt;
-  }
-}
 
 std::optional<BoundedLine> BoundedLine::fromDirectedLine(
     const DirectedLine &line, const Bound &lower, const Bound &upper) {

@@ -17,7 +17,6 @@ class Line {
   static std::optional<Line> fromPoints(const Vec2 &b1, const Vec2 &b2);
 
   std::optional<Vec2> getIntersection(const Line &other) const;
-  Line getPerpendicularLineThroughPoint(const Vec2 &point) const;
   Vec2 getDirectionVector() const;
 
   bool operator<(const Line &other) const;
@@ -70,8 +69,9 @@ class DirectedLine : public Line {
 
   DirectedLine getParallelLineWithOffset(const float offset) const;
   DirectedLine getParallelLineThroughPoint(const Vec2 &point) const;
+  DirectedLine getPerpendicularLineThroughPoint(const Vec2 &point,
+                                                const bool isRightHanded) const;
   float getAngle(const DirectedLine &other) const;
-  void isParallel(const DirectedLine &other) const;
 
  private:
   DirectedLine(const Line &line);
@@ -80,15 +80,12 @@ class DirectedLine : public Line {
 
 class BoundedLine : public DirectedLine {
  public:
-  using Bound = std::variant<Vec2, Line>;
+  using Bound = std::variant<Vec2, DirectedLine>;
 
   BoundedLine();
 
   static std::optional<BoundedLine> fromPoints(const Vec2 &lower,
                                                const Vec2 &upper);
-  static std::optional<BoundedLine> fromUndirectedLine(const Line &line,
-                                                       const Bound &lower,
-                                                       const Bound &upper);
   static std::optional<BoundedLine> fromDirectedLine(const DirectedLine &line,
                                                      const Bound &lower,
                                                      const Bound &upper);
