@@ -59,11 +59,9 @@ TEST_P(InterferenePlaneTests, Initialization) {
     ASSERT_EQ(edge.getValue()->edges.begin()->orientation,
               InterferencePlane::Orientation::PARALLEL);
   }
-  for (const auto &[coord, logicalEdge] : interferencePlane_.edges_) {
-    ASSERT_EQ(logicalEdge.orientationClass,
-              InterferencePlane::OrientationClass::PARALLEL);
-    ASSERT_GE(logicalEdge.group->edges.size(), 1);
-    ASSERT_GE(logicalEdge.group->points.size(), 2);
+  for (const auto &[coord, group] : interferencePlane_.edges_) {
+    ASSERT_GE(group->edges.size(), 1);
+    ASSERT_GE(group->points.size(), 2);
     auto it = interferencePlane_.parallelEdgeAdjacency_.find(coord.id);
     ASSERT_NE(it, interferencePlane_.parallelEdgeAdjacency_.end());
     ASSERT_LT(it->second.first, std::numeric_limits<uint32_t>::max());
@@ -76,23 +74,23 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
   interferencePlane_.applyOffsetFunction(
       [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
       OFFSET_COLOR);
-  // std::cout << interferencePlane_.graph_.getVertices().getCount() << "
-  // vertices"
-  //           << std::endl;
-  // for (const InterferencePlane::Graph::ConstVertex &vertex :
-  //      interferencePlane_.graph_.getVertices()) {
-  //   std::cout << vertex.getIndex() << " "
-  //             << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
-  //             << vertex.getValue() << std::endl;
-  // }
-  // for (const InterferencePlane::Graph::ConstEdge &edge :
-  //      interferencePlane_.graph_.getEdges()) {
-  //   std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
-  //   std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
-  //             std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
-  //                 std::cout, ", "));
-  //   std::cout << std::endl;
-  // }
+  std::cout << interferencePlane_.graph_.getVertices().getCount()
+            << " vertices, " << interferencePlane_.graph_.getEdges().getCount()
+            << " edges" << std::endl;
+  for (const InterferencePlane::Graph::ConstVertex &vertex :
+       interferencePlane_.graph_.getVertices()) {
+    std::cout << vertex.getIndex() << " "
+              << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
+              << vertex.getValue() << std::endl;
+  }
+  for (const InterferencePlane::Graph::ConstEdge &edge :
+       interferencePlane_.graph_.getEdges()) {
+    std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
+    std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
+              std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
+                  std::cout, ", "));
+    std::cout << std::endl;
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -54,7 +54,7 @@ void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
                                             const uint32_t baseColor,
                                             const uint32_t perpendicularColor,
                                             const uint32_t newColor) {
-  for (const auto &[coord, logicalEdge] : edges_) {
+  for (const auto &[coord, group] : edges_) {
     if (coord.color == baseColor &&
         coord.orientation == Orientation::PARALLEL) {
       // Fix this to get assembly plane of corresponding edge
@@ -114,9 +114,7 @@ void InterferencePlane::addEdge(const uint32_t v0, const uint32_t v1,
     group->points.insert(v1);
     graph_.emplaceEdge(v0, v1).first->getValue() = group;
   }
-  edges_.emplace(coord,
-                 LogicalEdge{.group = group,
-                             .orientationClass = OrientationClass::PARALLEL});
+  edges_.emplace(coord, group);
 }
 
 void InterferencePlane::addAngle(const uint32_t v0, const uint32_t v1,
@@ -144,16 +142,14 @@ void InterferencePlane::addParallelEdgeFromOffset(const EdgeCoordinate &coord,
                                .color = newColor,
                                .orientation = Orientation::PARALLEL};
     DirectedLine offsetLine =
-        it->second.group->line.getParallelLineWithOffset(offset);
+        it->second->line.getParallelLineWithOffset(offset);
     std::shared_ptr<EdgeGroup> group =
         groupMap_
             .emplace(offsetLine,
                      std::make_shared<EdgeGroup>(assembly_, offsetLine))
             .first->second;
     group->edges.insert(newCoord);
-    edges_.emplace(newCoord,
-                   LogicalEdge{.group = group,
-                               .orientationClass = OrientationClass::PARALLEL});
+    edges_.emplace(newCoord, group);
     computeInterferenceWithAdjacentEdges(newCoord);
     computeInterferenceWithColor(newCoord, newColor);
     computeInterferenceWithColor(newCoord, coord.color);
@@ -166,30 +162,30 @@ void InterferencePlane::computeInterferenceWithAdjacentEdges(
   assert(adjacencyIt != parallelEdgeAdjacency_.end());
   const auto &[lower, upper] = adjacencyIt->second;
   std::set<std::shared_ptr<EdgeGroup>> groups;
-  for (const auto &[other, logicalEdge] : edges_) {
+  for (const auto &[other, group] : edges_) {
     if (other.id == lower || other.id == upper) {
-      groups.insert(logicalEdge.group);
+      groups.insert(group);
     }
   }
   auto edgeIt = edges_.find(coord);
   assert(edgeIt != edges_.end());
   for (const std::shared_ptr<EdgeGroup> &group : groups) {
-    findAndInsertIntersection(edgeIt->second.group, group);
+    findAndInsertIntersection(edgeIt->second, group);
   }
 }
 
 void InterferencePlane::computeInterferenceWithColor(
     const EdgeCoordinate &coord, const uint32_t color) {
   std::set<std::shared_ptr<EdgeGroup>> groups;
-  for (const auto &[other, logicalEdge] : edges_) {
+  for (const auto &[other, group] : edges_) {
     if (other.color == color) {
-      groups.insert(logicalEdge.group);
+      groups.insert(group);
     }
   }
   auto edgeIt = edges_.find(coord);
   assert(edgeIt != edges_.end());
   for (const std::shared_ptr<EdgeGroup> &group : groups) {
-    findAndInsertIntersection(edgeIt->second.group, group);
+    findAndInsertIntersection(edgeIt->second, group);
   }
 }
 

@@ -23,7 +23,6 @@ class InterferencePlane {
 
  private:
   enum class Orientation { PARALLEL, RIGHT_PERPENDICULAR, LEFT_PERPENDICULAR };
-  enum class OrientationClass { PARALLEL, PERPENDICULAR };
 
   struct EdgeCoordinate {
     uint32_t id;
@@ -62,11 +61,6 @@ class InterferencePlane {
     std::set<uint32_t, Comparator>
         points; /** Points associated with this group, actual points are stored
                    in the AssemblyPlane. */
-  };
-
-  struct LogicalEdge {
-    std::shared_ptr<EdgeGroup> group;
-    OrientationClass orientationClass;
   };
 
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<EdgeGroup>,
@@ -116,7 +110,7 @@ class InterferencePlane {
  private:
   std::shared_ptr<AssemblyPlane> assembly_;
   Graph graph_;
-  std::map<EdgeCoordinate, LogicalEdge> edges_;
+  std::map<EdgeCoordinate, std::shared_ptr<EdgeGroup>> edges_;
   std::map<DirectedLine, std::shared_ptr<EdgeGroup>> groupMap_;
   std::map<uint32_t, std::pair<uint32_t, uint32_t>>
       parallelEdgeAdjacency_; /** Maps an edge ID to the (lower, upper) adjacent
