@@ -39,6 +39,16 @@ InterferencePlane::EdgeGroup::EdgeGroup(
     const DirectedLine &line)
     : points(Comparator(assemblyPlane, line)), line(line) {}
 
+std::ostream &operator<<(std::ostream &os,
+                         const InterferencePlane::EdgeGroup &group) {
+  std::copy(group.edges.begin(), group.edges.end(),
+            std::ostream_iterator<InterferencePlane::EdgeCoordinate>(os, ", "));
+  os << ": ";
+  std::copy(group.points.begin(), group.points.end(),
+            std::ostream_iterator<uint32_t>(os, " -> "));
+  return os;
+}
+
 InterferencePlane::InterferencePlane(
     const std::shared_ptr<AssemblyPlane> &assemblyPlane)
     : assembly_(assemblyPlane) {}

@@ -52,20 +52,20 @@ class InterferenePlaneTests
 };
 
 TEST_P(InterferenePlaneTests, Initialization) {
+  std::map<std::shared_ptr<InterferencePlane::EdgeGroup>, uint32_t> groupCount;
   for (const InterferencePlane::Graph::ConstEdge &edge :
        interferencePlane_.graph_.getEdges()) {
-    ASSERT_GE(edge.getValue()->edges.size(), 1);
+    groupCount.emplace(edge.getValue(), 0).first->second++;
     ASSERT_EQ(edge.getValue()->edges.begin()->color, 3);
     ASSERT_EQ(edge.getValue()->edges.begin()->orientation,
               InterferencePlane::Orientation::PARALLEL);
   }
   for (const auto &[coord, group] : interferencePlane_.edges_) {
-    ASSERT_GE(group->edges.size(), 1);
-    ASSERT_GE(group->points.size(), 2);
     auto it = interferencePlane_.parallelEdgeAdjacency_.find(coord.id);
     ASSERT_NE(it, interferencePlane_.parallelEdgeAdjacency_.end());
     ASSERT_LT(it->second.first, std::numeric_limits<uint32_t>::max());
     ASSERT_LT(it->second.second, std::numeric_limits<uint32_t>::max());
+    ASSERT_EQ(groupCount.find(group)->second + 1, group->points.size());
   }
   ASSERT_EQ(interferencePlane_.groupMap_.size(), GetParam().numEdgeGroups);
 }
@@ -85,11 +85,8 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
   }
   for (const InterferencePlane::Graph::ConstEdge &edge :
        interferencePlane_.graph_.getEdges()) {
-    std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
-    std::copy(edge.getValue()->edges.begin(), edge.getValue()->edges.end(),
-              std::ostream_iterator<InterferencePlane::EdgeCoordinate>(
-                  std::cout, ", "));
-    std::cout << std::endl;
+    std::cout << edge.getSource() << " -> " << edge.getDest() << ": "
+              << *edge.getValue() << std::endl;
   }
 }
 

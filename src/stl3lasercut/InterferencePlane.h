@@ -61,7 +61,10 @@ class InterferencePlane {
     std::set<uint32_t, Comparator>
         points; /** Points associated with this group, actual points are stored
                    in the AssemblyPlane. */
+
+    friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
   };
+  friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
 
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<EdgeGroup>,
                                     MultiVertexConnectivityGraph>;
