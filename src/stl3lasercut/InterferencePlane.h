@@ -18,6 +18,7 @@ class LoopPlane;
 
 /** An InterferencePlane performs offsets and dynamic intersection creation. */
 class InterferencePlane {
+  friend class DesmosOutput;
   FRIEND_TEST(InterferenePlaneTests, Initialization);
   FRIEND_TEST(InterferenePlaneTests, ConstantOffset);
 

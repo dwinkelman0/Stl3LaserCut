@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <stl3lasercut/AssemblyPlane.h>
+#include <stl3lasercut/Desmos.h>
 #include <stl3lasercut/InterferencePlane.h>
 #include <stl3lasercut/LoopPlane.h>
 
@@ -76,7 +77,7 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
       [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
       INTERMEDIATE_COLOR, false);
   interferencePlane_.applyOffsetFunction(
-      [](const auto &, const auto &) { return -1; }, INTERMEDIATE_COLOR,
+      [](const auto &, const auto &) { return 0.5; }, INTERMEDIATE_COLOR,
       BASE_COLOR, OFFSET_COLOR, true);
   std::cout << interferencePlane_.groupMap_.size() << " groups, "
             << interferencePlane_.graph_.getVertices().getCount()
@@ -91,6 +92,9 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
   for (const auto &[line, group] : interferencePlane_.groupMap_) {
     std::cout << *group << std::endl;
   }
+  std::ofstream outputFile("desmos_" + GetParam().name + ".html");
+  DesmosOutput desmos(outputFile, assemblyPlane_);
+  desmos.outputInterferencePlane(interferencePlane_);
 }
 
 INSTANTIATE_TEST_SUITE_P(
