@@ -13,12 +13,6 @@ class AssemblyPlane;
 class InterferencePlane;
 
 class DesmosOutput {
- private:
-  struct EdgeCountComparator {
-    bool operator()(const std::pair<uint32_t, uint32_t> &a,
-                    const std::pair<uint32_t, uint32_t> &b) const;
-  };
-
  public:
   DesmosOutput(std::ofstream &outputFile,
                const std::shared_ptr<AssemblyPlane> &assembly);
@@ -42,7 +36,6 @@ class DesmosOutput {
 
   std::ostream &outputFile_;
   std::shared_ptr<AssemblyPlane> assembly_;
-  std::map<std::pair<uint32_t, uint32_t>, uint32_t, EdgeCountComparator>
-      edgeCount_;
+  std::map<std::pair<uint32_t, uint32_t>, uint32_t> edgeCount_;
 };
 }  // namespace stl3lasercut

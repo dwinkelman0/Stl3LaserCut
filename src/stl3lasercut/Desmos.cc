@@ -6,20 +6,10 @@
 #include <stl3lasercut/InterferencePlane.h>
 
 #include <iomanip>
+#include <numbers>
 #include <sstream>
 
 namespace stl3lasercut {
-bool DesmosOutput::EdgeCountComparator::operator()(
-    const std::pair<uint32_t, uint32_t> &a,
-    const std::pair<uint32_t, uint32_t> &b) const {
-  return (a.first < a.second
-              ? a
-              : std::pair<uint32_t, uint32_t>(a.second, a.first)) <
-         (b.first < b.second
-              ? b
-              : std::pair<uint32_t, uint32_t>(b.second, b.first));
-}
-
 DesmosOutput::DesmosOutput(std::ofstream &outputFile,
                            const std::shared_ptr<AssemblyPlane> &assembly)
     : outputFile_(outputFile), assembly_(assembly) {
@@ -39,9 +29,6 @@ DesmosOutput::~DesmosOutput() {
 }
 
 void DesmosOutput::outputInterferencePlane(const InterferencePlane &plane) {
-  // expr(
-  //     "c.setExpression({ id: 'graph1', latex: "
-  //     "'(4+0.1\\\\cos(t),5+0.1\\\\sin(t))', color: 'red', label: 'e4' });");
   for (const InterferencePlane::Graph::ConstVertex &vertex :
        plane.graph_.getVertices()) {
     drawPoint(vertex.getIndex(), 0);
@@ -90,6 +77,7 @@ void DesmosOutput::drawPoint(const std::string &label, const Vec2 point,
 
 void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
                             const std::string &label, const uint32_t color) {
+  const float OFFSET = 0.02;
   uint32_t count =
       edgeCount_.emplace(std::pair<uint32_t, uint32_t>(source, dest), 0)
           .first->second++;
@@ -98,11 +86,15 @@ void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
   std::stringstream ss;
   ss << std::fixed;
   DirectedLine line = DirectedLine::fromPoints(a, b)->getParallelLineWithOffset(
-      ((count + 1) / 2) * 0.05 * (count % 2 ? -1 : 1));
+      count * OFFSET *
+          (std::abs(angle(a - b, Vec2(1, 0))) - std::numbers::pi / 2 < 1e-6
+               ? 1
+               : -1) -
+      OFFSET / 2);
   a = *line.getIntersection(line.getPerpendicularLineThroughPoint(a, true));
   b = *line.getIntersection(line.getPerpendicularLineThroughPoint(b, true));
   ss << line;
-  if (std::get<0>(a) == std::get<0>(b)) {
+  if (std::get<0>(line.getDirectionVector()) == 1) {
     ss << " \\\\{" << std::min(std::get<1>(a), std::get<1>(b)) << " < y < "
        << std::max(std::get<1>(a), std::get<1>(b)) << "\\\\}";
   } else {
