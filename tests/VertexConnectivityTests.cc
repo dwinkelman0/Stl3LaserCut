@@ -56,7 +56,8 @@ class VertexConnectivityGraphTest : public testing::Test {
         auto reachableSet = graph_.getReachablePoints<IsForward>(it->first);
         std::vector<uint32_t> reachable(reachableSet.begin(),
                                         reachableSet.end());
-        ASSERT_THAT(reachable, ::testing::ContainerEq(outgoing));
+        ASSERT_THAT(reachable, ::testing::ContainerEq(outgoing))
+            << "vertex " << it->first << (IsForward ? " forward" : " backward");
       }
     }
   }
@@ -202,18 +203,28 @@ TEST_F(VertexConnectivityGraphTest, ConnectMergeOverlapFullCircle) {
   checkPointsReachableFromEverywhere({1, 5}, {2, 6});
 }
 
+TEST_F(VertexConnectivityGraphTest, ConnectMergeStraightLineEdgeCase) {
+  ASSERT_TRUE(graph_.connect(2, 7));
+  ASSERT_TRUE(graph_.connect(10, 4));
+  ASSERT_TRUE(graph_.connect(4, 10));
+
+  checkComponent(10, 6);
+  checkPointsReachableFromEverywhere({10, 2, 4}, {4, 10, 7});
+}
+
 TEST_F(VertexConnectivityGraphTest, Rename) {
   graph_.addVertex(1, false);
   graph_.addVertex(2, true);
   graph_.connect(1, 3);
-  checkPointsReachable({{1, true}, {1, false}, {2, true}, {3, false}});
+  checkComponent(1, 3);
+  checkPointsReachable({{1, true}, {2, true}, {3, false}});
 
   graph_.rename(1, 11);
   graph_.rename(2, 12);
   graph_.rename(3, 13);
 
-  checkComponent(11, 4);
-  checkPointsReachable({{11, true}, {11, false}, {12, true}, {13, false}});
-  checkUnconnected(0);
+  checkComponent(11, 3);
+  checkPointsReachable({{11, true}, {12, true}, {13, false}});
+  checkUnconnected(1);
 }
 }  // namespace stl3lasercut

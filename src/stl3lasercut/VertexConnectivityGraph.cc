@@ -109,6 +109,12 @@ MultiVertexConnectivityGraph::MultiVertexConnectivityGraph(
       centralVertex_(centralVertex),
       fullCircle_(false) {}
 
+void MultiVertexConnectivityGraph::reset() {
+  unconnected_.clear();
+  components_.clear();
+  fullCircle_ = false;
+}
+
 bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
                                            const uint32_t v1) {
   // Get rid of unconnected vertices
@@ -120,10 +126,11 @@ bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
   std::optional<ComponentMap::iterator> existingRoot;
   for (auto it = components_.begin(), end = components_.end(); it != end;
        ++it) {
-    if (componentContainsPoint(it, v0) || componentContainsPoint(it, v1) ||
+    if (componentContainsPoint(it, v0, true) ||
+        componentContainsPoint(it, v1, false) ||
         it->second.key_comp()(v1, v0)) {
       intersectingComponents.push_back(it);
-      if (componentContainsPoint(it, v0)) {
+      if (componentContainsPoint(it, v0, true)) {
         // Incoming edge is contained in the component
         assert(!existingRoot);
         existingRoot = it;
@@ -161,7 +168,7 @@ bool MultiVertexConnectivityGraph::connect(const uint32_t v0,
   // Look for unconnected vertices to merge
   for (auto it = unconnected_.begin(), end = unconnected_.end(); it != end;) {
     auto oldIt = it++;
-    if (componentContainsPoint(root, oldIt->first)) {
+    if (componentContainsPoint(root, oldIt->first, oldIt->second)) {
       root->second.insert(*oldIt);
       unconnected_.erase(oldIt);
     }
@@ -175,7 +182,7 @@ bool MultiVertexConnectivityGraph::addVertex(const uint32_t v0,
   // Check whether it intersects any components
   for (auto it = components_.begin(), end = components_.end(); it != end;
        ++it) {
-    if (componentContainsPoint(it, v0)) {
+    if (componentContainsPoint(it, v0, isIncoming)) {
       it->second.emplace(v0, isIncoming);
       return true;
     }
@@ -246,13 +253,15 @@ std::ostream &operator<<(std::ostream &os,
 }
 
 bool MultiVertexConnectivityGraph::componentContainsPoint(
-    const ComponentMap::const_iterator &it, const uint32_t vertex) const {
+    const ComponentMap::const_iterator &it, const uint32_t vertex,
+    const bool isIncoming) const {
   if (it->second.empty()) {
     return false;
   } else {
-    bool lessThan = it->second.key_comp()(vertex, it->second.rbegin()->first);
-    bool greaterThan =
-        it->second.key_comp()(it->second.rbegin()->first, vertex);
+    bool lessThan = it->second.key_comp()(
+        std::pair<uint32_t, bool>(vertex, isIncoming), *it->second.rbegin());
+    bool greaterThan = it->second.key_comp()(
+        *it->second.rbegin(), std::pair<uint32_t, bool>(vertex, isIncoming));
     return lessThan || !lessThan && !greaterThan;
   }
 }

@@ -99,7 +99,11 @@ bool DirectedLine::AngularComparator<RightHanded>::operator()(
 template <bool RightHanded>
 bool DirectedLine::AngularComparator<RightHanded>::isZero(
     const DirectedLine &a) const {
-  return a.getDirectionVector() == direction_;
+  if (RightHanded) {
+    return a.getDirectionVector() == direction_;
+  } else {
+    return reflect(a.getDirectionVector()) == direction_;
+  }
 }
 
 template class DirectedLine::AngularComparator<true>;
