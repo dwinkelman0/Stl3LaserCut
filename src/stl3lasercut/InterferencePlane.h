@@ -48,13 +48,15 @@ class InterferencePlane {
                                   const EdgeCoordinate &coord);
 
   class EdgeGroup {
-   private:
+   public:
     struct Comparator {
      public:
       Comparator(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
                  const DirectedLine &line);
 
       bool operator()(const uint32_t a, const uint32_t b) const;
+      bool lessThanOrEqual(const uint32_t a, const uint32_t b) const;
+      bool greaterThanOrEqual(const uint32_t a, const uint32_t b) const;
 
      private:
       std::shared_ptr<AssemblyPlane> assembly_;
@@ -143,13 +145,36 @@ class InterferencePlane {
   bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
                           const std::shared_ptr<EdgeGroup> &outgoing) const;
 
+  bool restrictEdgeBounds(
+      const EdgeCoordinate
+          &coord); /** Returns true if, and only if, progress was made. */
+  std::pair<uint32_t, uint32_t> getEdgeBounds(const EdgeCoordinate &coord)
+      const; /** Get the inclusive min and max vertices that can be a part of
+                the edge. */
+  template <bool IsForward>
+  std::set<uint32_t> getReachableEdges(const EdgeCoordinate &coord,
+                                       const uint32_t v0,
+                                       const uint32_t v1) const;
+  template <bool IsForward>
+  std::set<uint32_t> getReachableColorsMatchingEdge(const uint32_t v0,
+                                                    const uint32_t v1) const;
+  template <bool IsForward>
+  std::set<uint32_t> getReachable(
+      const uint32_t v0, const uint32_t v1,
+      const std::function<std::optional<uint32_t>(const EdgeCoordinate &)>
+          &func) const;
+  bool isInEstimatedBounds(const EdgeCoordinate &coord, const uint32_t v0,
+                           const uint32_t v1) const;
+
+  bool pruneVertices();
+
  private:
   std::shared_ptr<AssemblyPlane> assembly_;
   Graph graph_;
   std::map<EdgeCoordinate, std::shared_ptr<EdgeGroup>> edges_;
   std::map<DirectedLine, std::shared_ptr<EdgeGroup>> groupMap_;
   std::map<uint32_t, std::pair<uint32_t, uint32_t>>
-      parallelEdgeAdjacency_; /** Maps an edge ID to the (lower, upper) adjacent
+      edgeAdjacency_; /** Maps an edge ID to the (lower, upper) adjacent
                                  edge IDs. */
   std::map<uint32_t, uint32_t> colorAdjacency_; /** Maps a color to the color
                                                    from which it is derived. */
@@ -159,5 +184,6 @@ class InterferencePlane {
                               two adjacent edges belong to the same group. Not
                               meant to be exhaustive because intersections can
                               be inferred in other ways in most cases. */
+  std::map<EdgeCoordinate, std::pair<uint32_t, uint32_t>> estimatedBounds_;
 };
 }  // namespace stl3lasercut

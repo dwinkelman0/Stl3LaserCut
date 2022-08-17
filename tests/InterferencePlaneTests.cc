@@ -63,8 +63,8 @@ TEST_P(InterferenePlaneTests, Initialization) {
               InterferencePlane::Orientation::PARALLEL);
   }
   for (const auto &[coord, group] : interferencePlane_.edges_) {
-    auto it = interferencePlane_.parallelEdgeAdjacency_.find(coord.id);
-    ASSERT_NE(it, interferencePlane_.parallelEdgeAdjacency_.end());
+    auto it = interferencePlane_.edgeAdjacency_.find(coord.id);
+    ASSERT_NE(it, interferencePlane_.edgeAdjacency_.end());
     ASSERT_LT(it->second.first, std::numeric_limits<uint32_t>::max());
     ASSERT_LT(it->second.second, std::numeric_limits<uint32_t>::max());
     ASSERT_EQ(groupCount.find(group)->second + 1, group->points.size());
@@ -77,20 +77,46 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
       [](const auto &, const auto &) { return -1; }, BASE_COLOR, BASE_COLOR,
       INTERMEDIATE_COLOR, false);
   interferencePlane_.applyOffsetFunction(
-      [](const auto &, const auto &) { return 0.5; }, INTERMEDIATE_COLOR,
-      BASE_COLOR, OFFSET_COLOR, true);
+      [](const auto &, const auto &) { return -0.5; }, INTERMEDIATE_COLOR,
+      INTERMEDIATE_COLOR, OFFSET_COLOR, true);
+  interferencePlane_.pruneVertices();
+  ASSERT_EQ(interferencePlane_.colorAdjacency_.size(), 2);
+  ASSERT_EQ(interferencePlane_.colorAdjacency_.find(INTERMEDIATE_COLOR)->second,
+            BASE_COLOR);
+  ASSERT_EQ(interferencePlane_.colorAdjacency_.find(OFFSET_COLOR)->second,
+            INTERMEDIATE_COLOR);
   std::cout << interferencePlane_.groupMap_.size() << " groups, "
             << interferencePlane_.graph_.getVertices().getCount()
             << " vertices, " << interferencePlane_.graph_.getEdges().getCount()
             << " edges" << std::endl;
   for (const InterferencePlane::Graph::ConstVertex &vertex :
        interferencePlane_.graph_.getVertices()) {
-    std::cout << vertex.getIndex() << " "
-              << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
-              << vertex.getValue() << std::endl;
+    // std::cout << vertex.getIndex() << " "
+    //           << assemblyPlane_->getPoint(vertex.getIndex()) << ": "
+    //           << vertex.getValue() << std::endl;
   }
   for (const auto &[line, group] : interferencePlane_.groupMap_) {
     std::cout << *group << std::endl;
+  }
+  for (const auto &edge : interferencePlane_.graph_.getEdges()) {
+    std::cout << edge.getSource() << " -> " << edge.getDest()
+              << "  - forward: ";
+    for (const InterferencePlane::EdgeCoordinate coord :
+         edge.getValue()->edges) {
+      std::cout << coord << " = ";
+      auto forwardReachable = interferencePlane_.getReachableEdges<true>(
+          coord, edge.getSource(), edge.getDest());
+      std::copy(forwardReachable.begin(), forwardReachable.end(),
+                std::ostream_iterator<uint32_t>(std::cout, ", "));
+      std::cout << ";  ";
+    }
+    std::cout << std::endl;
+    // auto backwardReachable = interferencePlane_.getReachableEdges<false>(
+    //     edge.getSource(), edge.getDest());
+    // std::cout << "  - backward: ";
+    // std::copy(backwardReachable.begin(), backwardReachable.end(),
+    //           std::ostream_iterator<uint32_t>(std::cout, ", "));
+    // std::cout << std::endl;
   }
   std::ofstream outputFile("desmos_" + GetParam().name + ".html");
   DesmosOutput desmos(outputFile, assemblyPlane_);
