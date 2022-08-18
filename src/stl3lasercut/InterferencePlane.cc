@@ -402,41 +402,108 @@ bool InterferencePlane::areEdgesContinuous(
   return !areSetsDisjoint(validEdges, successorEdges);
 }
 
+std::pair<uint32_t, uint32_t> InterferencePlane::getEdgeBounds(
+    const EdgeCoordinate &coord) const {
+  // This is a very inefficient algorithm because there is a lot of redundancy,
+  // it may be good in the future to offer this only as a bulk calculation
+  return {getEdgeBound<false>(coord), getEdgeBound<true>(coord)};
+}
+
+template <bool IsForward>
+uint32_t InterferencePlane::getEdgeBound(const EdgeCoordinate &coord) const {
+  // If forward, find the maximum segment that reaches the forward-adjacent edge
+  // Set up iterators
+  std::shared_ptr<EdgeGroup> group = expectToFind(edges_, coord)->second;
+  using PointSet = std::set<uint32_t, EdgeGroup::Comparator>;
+  using Iterator =
+      typename std::conditional<IsForward, PointSet::const_iterator,
+                                PointSet::const_reverse_iterator>::type;
+  Iterator sourceIt, destIt, endIt;
+  if constexpr (IsForward) {
+    sourceIt = group->points.begin();
+    endIt = group->points.end();
+  } else {
+    sourceIt = group->points.rbegin();
+    endIt = group->points.rend();
+  }
+  destIt = std::next(sourceIt);
+
+  uint32_t output = *sourceIt;
+  if (coord.orientation == Orientation::PARALLEL) {
+    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
+    uint32_t nextEdge = IsForward ? adjacency.second : adjacency.first;
+    for (; destIt != endIt; sourceIt = destIt++) {
+      std::set<uint32_t> edges =
+          getReachableEdges<IsForward>(coord, IsForward ? *sourceIt : *destIt,
+                                       IsForward ? *destIt : *sourceIt);
+      if (edges.find(coord.id) != edges.end() ||
+          edges.find(nextEdge) != edges.end()) {
+        output = *destIt;
+      }
+    }
+  } else {
+    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
+    uint32_t nextEdge = coord.orientation == Orientation::INCOMING_PERPENDICULAR
+                            ? adjacency.second
+                            : adjacency.first;
+    uint32_t nextColor =
+        (coord.orientation == Orientation::INCOMING_PERPENDICULAR) ^ IsForward
+            ? coord.color
+            : expectToFind(colorAdjacency_, coord.color)->second;
+    for (; destIt != endIt; sourceIt = destIt++) {
+      std::set<uint32_t> colors = getReachableColorsMatchingEdge<IsForward>(
+          coord, IsForward ? *sourceIt : *destIt,
+          IsForward ? *destIt : *sourceIt, nextEdge);
+      if (colors.find(nextColor) != colors.end()) {
+        output = *destIt;
+      }
+    }
+    // Find correct edge if it is at the end and in the wrong orientation
+    for (const Graph::ConstEdge edge :
+         IsForward ? graph_.getEdgesToVertex(*sourceIt)
+                   : graph_.getEdgesFromVertex(*sourceIt)) {
+      for (const EdgeCoordinate &other : edge.getValue()->edges) {
+        if ((other.id == coord.id || other.id == nextEdge) &&
+            other.color == nextColor &&
+            other.orientation == Orientation::PARALLEL) {
+          return *sourceIt;
+        }
+      }
+    }
+  }
+  return output;
+}
+
 template <bool IsForward>
 std::set<uint32_t> InterferencePlane::getReachableEdges(
     const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1) const {
-  return getReachable<IsForward>(v0, v1, [&coord](const EdgeCoordinate &other) {
-    return other.id != coord.id ||
-                   other.id == coord.id &&
-                       coord.orientation == Orientation::PARALLEL &&
-                       other.orientation != Orientation::PARALLEL
-               ? std::optional<uint32_t>(other.id)
-               : std::nullopt;
-  });
+  std::set<uint32_t> output;
+  for (const EdgeCoordinate &other : getReachable<IsForward>(v0, v1)) {
+    if (other.id != coord.id) {
+      output.emplace(other.id);
+    }
+  }
+  return output;
 }
 
 template <bool IsForward>
 std::set<uint32_t> InterferencePlane::getReachableColorsMatchingEdge(
-    const uint32_t v0, const uint32_t v1) const {
-  std::set<uint32_t> edgeIds;
-  for (const EdgeCoordinate &coord :
-       Graph::unwrap(graph_.getEdge(v0, v1)).getValue()->edges) {
-    edgeIds.emplace(coord.id);
+    const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1,
+    const uint32_t otherEdgeId) const {
+  std::set<uint32_t> output;
+  for (const EdgeCoordinate &other : getReachable<IsForward>(v0, v1)) {
+    if ((other.id == coord.id || other.id == otherEdgeId) &&
+        other.orientation == Orientation::PARALLEL) {
+      output.emplace(other.color);
+    }
   }
-  return getReachable<IsForward>(
-      v0, v1, [&edgeIds](const EdgeCoordinate &coord) {
-        return edgeIds.find(coord.id) != edgeIds.end()
-                   ? std::optional<uint32_t>(coord.color)
-                   : std::nullopt;
-      });
+  return output;
 }
 
 template <bool IsForward>
-std::set<uint32_t> InterferencePlane::getReachable(
-    const uint32_t v0, const uint32_t v1,
-    const std::function<std::optional<uint32_t>(const EdgeCoordinate &)> &func)
-    const {
-  std::set<uint32_t> output;
+std::set<InterferencePlane::EdgeCoordinate> InterferencePlane::getReachable(
+    const uint32_t v0, const uint32_t v1) const {
+  std::set<EdgeCoordinate> output;
   uint32_t centralVertex = IsForward ? v1 : v0;
   auto reachable = Graph::unwrap(graph_.getVertex(centralVertex))
                        .getValue()
@@ -448,21 +515,12 @@ std::set<uint32_t> InterferencePlane::getReachable(
              .getValue()
              ->edges) {
       if (isInEstimatedBounds(coord, v0, v1)) {
-        std::optional<uint32_t> item = func(coord);
-        if (item) {
-          output.emplace(*item);
-        }
+        output.emplace(coord);
       }
     }
   }
   return output;
 }
-
-template std::set<uint32_t> InterferencePlane::getReachableEdges<true>(
-    const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1) const;
-
-template std::set<uint32_t> InterferencePlane::getReachableEdges<false>(
-    const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1) const;
 
 bool InterferencePlane::isInEstimatedBounds(const EdgeCoordinate &coord,
                                             const uint32_t v0,

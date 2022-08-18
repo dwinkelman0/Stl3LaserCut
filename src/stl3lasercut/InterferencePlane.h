@@ -63,6 +63,14 @@ class InterferencePlane {
       DirectedLine::PointComparator comparator_;
     };
 
+    class Range {
+     public:
+      Range(const EdgeGroup &group);
+
+     private:
+      Comparator comparator_;
+    };
+
    public:
     EdgeGroup(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
               const DirectedLine &line);
@@ -145,24 +153,22 @@ class InterferencePlane {
   bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
                           const std::shared_ptr<EdgeGroup> &outgoing) const;
 
-  bool restrictEdgeBounds(
-      const EdgeCoordinate
-          &coord); /** Returns true if, and only if, progress was made. */
-  std::pair<uint32_t, uint32_t> getEdgeBounds(const EdgeCoordinate &coord)
-      const; /** Get the inclusive min and max vertices that can be a part of
-                the edge. */
+  bool restrictEdgeBounds(const EdgeCoordinate &coord);
+  std::pair<uint32_t, uint32_t> getEdgeBounds(
+      const EdgeCoordinate &coord) const;
+  template <bool IsForward>
+  uint32_t getEdgeBound(const EdgeCoordinate &coord) const;
   template <bool IsForward>
   std::set<uint32_t> getReachableEdges(const EdgeCoordinate &coord,
                                        const uint32_t v0,
                                        const uint32_t v1) const;
   template <bool IsForward>
-  std::set<uint32_t> getReachableColorsMatchingEdge(const uint32_t v0,
-                                                    const uint32_t v1) const;
+  std::set<uint32_t> getReachableColorsMatchingEdge(
+      const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1,
+      const uint32_t otherEdgeId) const;
   template <bool IsForward>
-  std::set<uint32_t> getReachable(
-      const uint32_t v0, const uint32_t v1,
-      const std::function<std::optional<uint32_t>(const EdgeCoordinate &)>
-          &func) const;
+  std::set<EdgeCoordinate> getReachable(const uint32_t v0,
+                                        const uint32_t v1) const;
   bool isInEstimatedBounds(const EdgeCoordinate &coord, const uint32_t v0,
                            const uint32_t v1) const;
 

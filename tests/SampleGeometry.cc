@@ -63,7 +63,7 @@ std::vector<std::vector<Vec2>> rightConcavePolygon = {
     {{0, 0}, {4, -1}, {3, 0}, {4, 1}}};
 
 std::vector<std::vector<Vec2>> obtuseConcavePolygon = {
-    {{0, 0}, {3, 0}, {1, 1}, {0, 3}}};
+    {{0, 0}, {3, -1}, {0, 2}, {-3, -1}}};
 
 std::vector<std::vector<Vec2>> straightAnglePolygon = {
     {{0, 0}, {2, 0}, {4, 0}, {2, 3}}};

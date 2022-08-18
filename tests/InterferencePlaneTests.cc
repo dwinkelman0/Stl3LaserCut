@@ -99,24 +99,14 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
     std::cout << *group << std::endl;
   }
   for (const auto &edge : interferencePlane_.graph_.getEdges()) {
-    std::cout << edge.getSource() << " -> " << edge.getDest()
-              << "  - forward: ";
+    std::cout << edge.getSource() << " -> " << edge.getDest() << ":  ";
     for (const InterferencePlane::EdgeCoordinate coord :
          edge.getValue()->edges) {
       std::cout << coord << " = ";
-      auto forwardReachable = interferencePlane_.getReachableEdges<true>(
-          coord, edge.getSource(), edge.getDest());
-      std::copy(forwardReachable.begin(), forwardReachable.end(),
-                std::ostream_iterator<uint32_t>(std::cout, ", "));
-      std::cout << ";  ";
+      auto bounds = interferencePlane_.getEdgeBounds(coord);
+      std::cout << bounds.first << " to " << bounds.second << ",  ";
     }
     std::cout << std::endl;
-    // auto backwardReachable = interferencePlane_.getReachableEdges<false>(
-    //     edge.getSource(), edge.getDest());
-    // std::cout << "  - backward: ";
-    // std::copy(backwardReachable.begin(), backwardReachable.end(),
-    //           std::ostream_iterator<uint32_t>(std::cout, ", "));
-    // std::cout << std::endl;
   }
   std::ofstream outputFile("desmos_" + GetParam().name + ".html");
   DesmosOutput desmos(outputFile, assemblyPlane_);
@@ -131,6 +121,8 @@ INSTANTIATE_TEST_SUITE_P(
         InterferencePlaneTestCase{SAMPLE(obtuseTriangle), .numEdgeGroups = 3},
         InterferencePlaneTestCase{SAMPLE(straightAnglePolygon),
                                   .numEdgeGroups = 3},
+        InterferencePlaneTestCase{SAMPLE(obtuseConcavePolygon),
+                                  .numEdgeGroups = 4},
         InterferencePlaneTestCase{SAMPLE(disjointTriangles),
                                   .numEdgeGroups = 6},
         InterferencePlaneTestCase{SAMPLE(twoTangentTriangles),
