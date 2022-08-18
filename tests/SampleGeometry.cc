@@ -2,6 +2,8 @@
 
 #include "SampleGeometry.h"
 
+#include <cmath>
+
 namespace stl3lasercut {
 namespace samples {
 namespace tetrahedron_ {
@@ -46,6 +48,51 @@ std::vector<StlTriangle> geometry = {
     StlTriangle({v3, v6, v5}), StlTriangle({v5, v4, v3})};
 }  // namespace bowtie_
 std::vector<StlTriangle> bowtie(bowtie_::geometry);
+
+namespace thingy_ {
+Vec3 v0(0, 0, 0);
+Vec3 v1(2, 0, 0);
+Vec3 v2(0, 2, 0);
+Vec3 v3(-2, 0, 0);
+Vec3 v4(1, 0, 2);
+Vec3 v5(-1, 1, 2);
+std::vector<StlTriangle> geometry = {
+    StlTriangle({v0, v3, v2}), StlTriangle({v0, v2, v1}),
+    StlTriangle({v0, v1, v4}), StlTriangle({v0, v4, v5}),
+    StlTriangle({v0, v5, v3}), StlTriangle({v1, v2, v4}),
+    StlTriangle({v2, v5, v4}), StlTriangle({v2, v3, v5})};
+}  // namespace thingy_
+std::vector<StlTriangle> thingy(thingy_::geometry);
+
+namespace bowl_ {
+Vec3 v0(0, 0, -2);
+Vec3 v1(0, 0, -1);
+Vec3 v2(2, 0, 0);
+Vec3 v3(-1, std::sqrt(3), 0);
+Vec3 v4(-1, -std::sqrt(3), 0);
+std::vector<StlTriangle> geometry = {
+    StlTriangle({v1, v2, v3}), StlTriangle({v1, v3, v4}),
+    StlTriangle({v1, v4, v2}), StlTriangle({v0, v3, v2}),
+    StlTriangle({v0, v2, v4}), StlTriangle({v0, v4, v3})};
+}  // namespace bowl_
+std::vector<StlTriangle> bowl(bowl_::geometry);
+
+namespace dimpleFace_ {
+Vec3 v0(0, 0, 0);
+Vec3 v1(0, 6, 0);
+Vec3 v2(6, 0, 0);
+Vec3 v3(3, 1, 0);
+Vec3 v4(1, 3, 0);
+Vec3 v5(1.5, 1.5, -1);
+Vec3 v6(1.5, 1.5, -3);
+std::vector<StlTriangle> geometry = {
+    StlTriangle({v0, v2, v3}), StlTriangle({v2, v4, v3}),
+    StlTriangle({v2, v1, v4}), StlTriangle({v0, v4, v1}),
+    StlTriangle({v0, v6, v2}), StlTriangle({v0, v1, v6}),
+    StlTriangle({v1, v2, v6}), StlTriangle({v0, v3, v5}),
+    StlTriangle({v3, v4, v5}), StlTriangle({v4, v0, v5})};
+}  // namespace dimpleFace_
+std::vector<StlTriangle> dimpleFace(dimpleFace_::geometry);
 
 std::vector<std::vector<Vec2>> acuteTriangle = {{{0, 0}, {2, 0}, {1, 2}}};
 

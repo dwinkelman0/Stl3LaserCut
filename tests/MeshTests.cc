@@ -102,5 +102,14 @@ INSTANTIATE_TEST_SUITE_P(
             .characteristic = {.planes = 8, .vertices = 6, .edges = 12}},
         MeshTestCase{
             SAMPLE(bowtie),
-            .characteristic = {.planes = 7, .vertices = 7, .edges = 13}}));
+            .characteristic = {.planes = 7, .vertices = 7, .edges = 13}},
+        MeshTestCase{
+            SAMPLE(thingy),
+            .characteristic = {.planes = 7, .vertices = 6, .edges = 11}},
+        MeshTestCase{
+            SAMPLE(bowl),
+            .characteristic = {.planes = 6, .vertices = 5, .edges = 9}},
+        MeshTestCase{
+            SAMPLE(dimpleFace),
+            .characteristic = {.planes = 7, .vertices = 7, .edges = 12}}));
 }  // namespace stl3lasercut

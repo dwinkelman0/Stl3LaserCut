@@ -12,6 +12,9 @@ namespace samples {
 extern std::vector<StlTriangle> tetrahedron;
 extern std::vector<StlTriangle> octahedron;
 extern std::vector<StlTriangle> bowtie;
+extern std::vector<StlTriangle> thingy;
+extern std::vector<StlTriangle> bowl;
+extern std::vector<StlTriangle> dimpleFace;
 
 // 2D non-overlapping geometry
 extern std::vector<std::vector<Vec2>> acuteTriangle;
