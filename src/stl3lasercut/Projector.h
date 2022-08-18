@@ -2,11 +2,15 @@
 
 #pragma once
 
+#include <gtest/gtest.h>
 #include <stl3lasercut/Line.h>
 #include <stl3lasercut/Util.h>
 
 namespace stl3lasercut {
 class Projector2D {
+  FRIEND_TEST(Projector, Basic2D);
+  FRIEND_TEST(Projector, Advanced2D);
+
  public:
   Projector2D(const BoundedLine &reference);
 

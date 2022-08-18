@@ -7,10 +7,10 @@
 #include <tuple>
 
 namespace stl3lasercut {
+DirectedLine xAxis = *DirectedLine::fromPoints({0, 0}, {1, 0});
+
 Projector2D::Projector2D(const BoundedLine &reference)
-    : center_(reference.getMidpoint()),
-      angle_(std::atan2(std::get<1>(reference.getMidpoint()),
-                        std::get<0>(reference.getMidpoint()))) {}
+    : center_(reference.getMidpoint()), angle_(xAxis.getAngle(reference)) {}
 
 Vec2 Projector2D::normalize(const Vec2 &point) const {
   return rotate2D(point - center_, -angle_);

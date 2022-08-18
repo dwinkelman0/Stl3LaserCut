@@ -5,19 +5,33 @@
 #include <stl3lasercut/StlIo.h>
 
 #include <cmath>
+#include <numbers>
 
 #include "Util.h"
 
 namespace stl3lasercut {
-TEST(Projector, Projector2D) {
+TEST(Projector, Basic2D) {
   BoundedLine reference = *BoundedLine::fromPoints({0, 0}, {2, 2});
   Projector2D projector(reference);
+  ASSERT_FLOAT_EQ(projector.angle_, std::numbers::pi / 4);
   testPoint(projector.normalize({0, 0}), {-std::sqrt(2), 0});
   testPoint(projector.normalize({2, 2}), {std::sqrt(2), 0});
   testPoint(projector.normalize({0, 2}), {0, std::sqrt(2)});
   testPoint(projector.restore({-std::sqrt(2), 0}), {0, 0});
   testPoint(projector.restore({std::sqrt(2), 0}), {2, 2});
   testPoint(projector.restore({0, std::sqrt(2)}), {0, 2});
+}
+
+TEST(Projector, Advanced2D) {
+  BoundedLine reference = *BoundedLine::fromPoints({0, 1}, {-2, -1});
+  Projector2D projector(reference);
+  ASSERT_FLOAT_EQ(projector.angle_, -std::numbers::pi * 3 / 4);
+  testPoint(projector.normalize({0, 1}), {-std::sqrt(2), 0});
+  testPoint(projector.normalize({-2, -1}), {std::sqrt(2), 0});
+  testPoint(projector.normalize({0, -1}), {0, std::sqrt(2)});
+  testPoint(projector.restore({-std::sqrt(2), 0}), {0, 1});
+  testPoint(projector.restore({std::sqrt(2), 0}), {-2, -1});
+  testPoint(projector.restore({0, std::sqrt(2)}), {0, -1});
 }
 
 TEST(Projector, Projector3D) {
