@@ -26,24 +26,24 @@ std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-InterferencePlane::EdgeGroup::Comparator::Comparator(
+InterferencePlane::Comparator::Comparator(
     const std::shared_ptr<AssemblyPlane> &assemblyPlane,
     const DirectedLine &line)
     : assembly_(assemblyPlane), comparator_(line) {}
 
-bool InterferencePlane::EdgeGroup::Comparator::operator()(
-    const uint32_t a, const uint32_t b) const {
+bool InterferencePlane::Comparator::operator()(const uint32_t a,
+                                               const uint32_t b) const {
   return comparator_(assembly_->pointLookup_(a), assembly_->pointLookup_(b));
 }
 
-bool InterferencePlane::EdgeGroup::Comparator::lessThanOrEqual(
-    const uint32_t a, const uint32_t b) const {
+bool InterferencePlane::Comparator::lessThanOrEqual(const uint32_t a,
+                                                    const uint32_t b) const {
   return this->operator()(a, b) ||
          !this->operator()(a, b) && !this->operator()(b, a);
 }
 
-bool InterferencePlane::EdgeGroup::Comparator::greaterThanOrEqual(
-    const uint32_t a, const uint32_t b) const {
+bool InterferencePlane::Comparator::greaterThanOrEqual(const uint32_t a,
+                                                       const uint32_t b) const {
   return this->operator()(b, a) ||
          !this->operator()(b, a) && !this->operator()(a, b);
 }
@@ -60,6 +60,32 @@ std::ostream &operator<<(std::ostream &os,
   os << ": ";
   std::copy(group.points.begin(), group.points.end(),
             std::ostream_iterator<uint32_t>(os, " -> "));
+  return os;
+}
+
+InterferencePlane::VertexRange::VertexRange(
+    const std::shared_ptr<AssemblyPlane> &assemblyPlane,
+    const DirectedLine &line, const uint32_t lower, const uint32_t upper)
+    : comparator_(Comparator(assemblyPlane, line)),
+      lower_(lower),
+      upper_(upper) {}
+
+bool InterferencePlane::VertexRange::isNull() const {
+  return comparator_.greaterThanOrEqual(lower_, upper_);
+}
+
+bool InterferencePlane::VertexRange::contains(const uint32_t vertex) const {
+  return comparator_.lessThanOrEqual(lower_, vertex) &&
+         comparator_.lessThanOrEqual(vertex, upper_);
+}
+
+bool InterferencePlane::VertexRange::contains(const VertexRange &other) const {
+  return contains(other.lower_) && contains(other.upper_);
+}
+
+std::ostream &operator<<(std::ostream &os,
+                         const InterferencePlane::VertexRange &range) {
+  os << "[" << range.lower_ << ", " << range.upper_ << "]";
   return os;
 }
 
@@ -402,11 +428,12 @@ bool InterferencePlane::areEdgesContinuous(
   return !areSetsDisjoint(validEdges, successorEdges);
 }
 
-std::pair<uint32_t, uint32_t> InterferencePlane::getEdgeBounds(
+InterferencePlane::VertexRange InterferencePlane::getEdgeBounds(
     const EdgeCoordinate &coord) const {
   // This is a very inefficient algorithm because there is a lot of redundancy,
   // it may be good in the future to offer this only as a bulk calculation
-  return {getEdgeBound<false>(coord), getEdgeBound<true>(coord)};
+  return VertexRange(assembly_, expectToFind(edges_, coord)->second->line,
+                     getEdgeBound<false>(coord), getEdgeBound<true>(coord));
 }
 
 template <bool IsForward>
@@ -414,7 +441,7 @@ uint32_t InterferencePlane::getEdgeBound(const EdgeCoordinate &coord) const {
   // If forward, find the maximum segment that reaches the forward-adjacent edge
   // Set up iterators
   std::shared_ptr<EdgeGroup> group = expectToFind(edges_, coord)->second;
-  using PointSet = std::set<uint32_t, EdgeGroup::Comparator>;
+  using PointSet = std::set<uint32_t, Comparator>;
   using Iterator =
       typename std::conditional<IsForward, PointSet::const_iterator,
                                 PointSet::const_reverse_iterator>::type;
@@ -554,8 +581,7 @@ bool InterferencePlane::pruneVertices() {
     }
   }
   for (const auto &[line, group] : groupMap_) {
-    std::set<uint32_t, EdgeGroup::Comparator> newSet(
-        EdgeGroup::Comparator(assembly_, line));
+    std::set<uint32_t, Comparator> newSet(Comparator(assembly_, line));
     std::set<uint32_t> originalSet(group->points.begin(), group->points.end());
     std::set_difference(originalSet.begin(), originalSet.end(), pruned.begin(),
                         pruned.end(), std::inserter(newSet, newSet.begin()));

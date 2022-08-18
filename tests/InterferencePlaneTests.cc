@@ -104,7 +104,7 @@ TEST_P(InterferenePlaneTests, ConstantOffset) {
          edge.getValue()->edges) {
       std::cout << coord << " = ";
       auto bounds = interferencePlane_.getEdgeBounds(coord);
-      std::cout << bounds.first << " to " << bounds.second << ",  ";
+      std::cout << bounds << ",  ";
     }
     std::cout << std::endl;
   }

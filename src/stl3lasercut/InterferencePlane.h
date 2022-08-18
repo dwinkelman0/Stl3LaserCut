@@ -47,30 +47,21 @@ class InterferencePlane {
   friend std::ostream &operator<<(std::ostream &os,
                                   const EdgeCoordinate &coord);
 
-  class EdgeGroup {
+  struct Comparator {
    public:
-    struct Comparator {
-     public:
-      Comparator(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
-                 const DirectedLine &line);
+    Comparator(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
+               const DirectedLine &line);
 
-      bool operator()(const uint32_t a, const uint32_t b) const;
-      bool lessThanOrEqual(const uint32_t a, const uint32_t b) const;
-      bool greaterThanOrEqual(const uint32_t a, const uint32_t b) const;
+    bool operator()(const uint32_t a, const uint32_t b) const;
+    bool lessThanOrEqual(const uint32_t a, const uint32_t b) const;
+    bool greaterThanOrEqual(const uint32_t a, const uint32_t b) const;
 
-     private:
-      std::shared_ptr<AssemblyPlane> assembly_;
-      DirectedLine::PointComparator comparator_;
-    };
+   private:
+    std::shared_ptr<AssemblyPlane> assembly_;
+    DirectedLine::PointComparator comparator_;
+  };
 
-    class Range {
-     public:
-      Range(const EdgeGroup &group);
-
-     private:
-      Comparator comparator_;
-    };
-
+  class EdgeGroup {
    public:
     EdgeGroup(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
               const DirectedLine &line);
@@ -85,6 +76,25 @@ class InterferencePlane {
     friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
   };
   friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
+
+  class VertexRange {
+   public:
+    VertexRange(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
+                const DirectedLine &line, const uint32_t lower,
+                const uint32_t upper);
+
+    bool isNull() const;
+    bool contains(const uint32_t vertex) const;
+    bool contains(const VertexRange &other) const;
+
+    friend std::ostream &operator<<(std::ostream &os, const VertexRange &range);
+
+   private:
+    Comparator comparator_;
+    uint32_t lower_;
+    uint32_t upper_;
+  };
+  friend std::ostream &operator<<(std::ostream &os, const VertexRange &range);
 
   struct KnownIntersectionsComparator {
    public:
@@ -154,8 +164,7 @@ class InterferencePlane {
                           const std::shared_ptr<EdgeGroup> &outgoing) const;
 
   bool restrictEdgeBounds(const EdgeCoordinate &coord);
-  std::pair<uint32_t, uint32_t> getEdgeBounds(
-      const EdgeCoordinate &coord) const;
+  VertexRange getEdgeBounds(const EdgeCoordinate &coord) const;
   template <bool IsForward>
   uint32_t getEdgeBound(const EdgeCoordinate &coord) const;
   template <bool IsForward>
