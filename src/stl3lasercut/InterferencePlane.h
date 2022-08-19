@@ -19,8 +19,8 @@ class LoopPlane;
 /** An InterferencePlane performs offsets and dynamic intersection creation. */
 class InterferencePlane {
   friend class DesmosOutput;
-  FRIEND_TEST(InterferenePlaneTests, Initialization);
-  FRIEND_TEST(InterferenePlaneTests, ConstantOffset);
+  FRIEND_TEST(InterferencePlaneSetup, Setup);
+  FRIEND_TEST(InterferencePlaneOffset, Offset);
 
  private:
   enum class Orientation {
@@ -77,25 +77,6 @@ class InterferencePlane {
   };
   friend std::ostream &operator<<(std::ostream &os, const EdgeGroup &group);
 
-  class VertexRange {
-   public:
-    VertexRange(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
-                const DirectedLine &line, const uint32_t lower,
-                const uint32_t upper);
-
-    bool isNull() const;
-    bool contains(const uint32_t vertex) const;
-    bool contains(const VertexRange &other) const;
-
-    friend std::ostream &operator<<(std::ostream &os, const VertexRange &range);
-
-   private:
-    Comparator comparator_;
-    uint32_t lower_;
-    uint32_t upper_;
-  };
-  friend std::ostream &operator<<(std::ostream &os, const VertexRange &range);
-
   struct KnownIntersectionsComparator {
    public:
     bool operator()(const std::pair<EdgeCoordinate, EdgeCoordinate> &a,
@@ -114,16 +95,25 @@ class InterferencePlane {
       std::function<float(const std::shared_ptr<AssemblyPlane> &,
                           const std::shared_ptr<AssemblyPlane> &)>;
 
+  struct OffsetCalculation {
+    OffsetFunction function;
+    uint32_t baseColor;
+    uint32_t perpendicularColor;
+    uint32_t newColor;
+    bool calculateInterference;
+  };
+
  public:
   InterferencePlane(const std::shared_ptr<AssemblyPlane> &assembly);
 
   void addLoopPlane(const std::shared_ptr<LoopPlane> &loopPlane);
+  void applyOffsetFunctions(const std::vector<OffsetCalculation> &offsets);
+
+ private:
   void applyOffsetFunction(const OffsetFunction &func, const uint32_t baseColor,
                            const uint32_t perpendicularColor,
                            const uint32_t newColor,
                            const bool calculateInterference);
-
- private:
   void addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
                                 const uint32_t color);
   bool addPoint(const uint32_t index);
@@ -162,24 +152,6 @@ class InterferencePlane {
   void fixVertexConnectivity();
   bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
                           const std::shared_ptr<EdgeGroup> &outgoing) const;
-
-  bool restrictEdgeBounds(const EdgeCoordinate &coord);
-  VertexRange getEdgeBounds(const EdgeCoordinate &coord) const;
-  template <bool IsForward>
-  uint32_t getEdgeBound(const EdgeCoordinate &coord) const;
-  template <bool IsForward>
-  std::set<uint32_t> getReachableEdges(const EdgeCoordinate &coord,
-                                       const uint32_t v0,
-                                       const uint32_t v1) const;
-  template <bool IsForward>
-  std::set<uint32_t> getReachableColorsMatchingEdge(
-      const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1,
-      const uint32_t otherEdgeId) const;
-  template <bool IsForward>
-  std::set<EdgeCoordinate> getReachable(const uint32_t v0,
-                                        const uint32_t v1) const;
-  bool isInEstimatedBounds(const EdgeCoordinate &coord, const uint32_t v0,
-                           const uint32_t v1) const;
 
   bool pruneVertices();
 

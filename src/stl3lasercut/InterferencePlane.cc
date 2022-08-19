@@ -63,32 +63,6 @@ std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-InterferencePlane::VertexRange::VertexRange(
-    const std::shared_ptr<AssemblyPlane> &assemblyPlane,
-    const DirectedLine &line, const uint32_t lower, const uint32_t upper)
-    : comparator_(Comparator(assemblyPlane, line)),
-      lower_(lower),
-      upper_(upper) {}
-
-bool InterferencePlane::VertexRange::isNull() const {
-  return comparator_.greaterThanOrEqual(lower_, upper_);
-}
-
-bool InterferencePlane::VertexRange::contains(const uint32_t vertex) const {
-  return comparator_.lessThanOrEqual(lower_, vertex) &&
-         comparator_.lessThanOrEqual(vertex, upper_);
-}
-
-bool InterferencePlane::VertexRange::contains(const VertexRange &other) const {
-  return contains(other.lower_) && contains(other.upper_);
-}
-
-std::ostream &operator<<(std::ostream &os,
-                         const InterferencePlane::VertexRange &range) {
-  os << "[" << range.lower_ << ", " << range.upper_ << "]";
-  return os;
-}
-
 bool InterferencePlane::KnownIntersectionsComparator::operator()(
     const std::pair<EdgeCoordinate, EdgeCoordinate> &a,
     const std::pair<EdgeCoordinate, EdgeCoordinate> &b) const {
@@ -114,6 +88,16 @@ void InterferencePlane::addLoopPlane(
   });
 }
 
+void InterferencePlane::applyOffsetFunctions(
+    const std::vector<OffsetCalculation> &offsets) {
+  for (const OffsetCalculation &setting : offsets) {
+    applyOffsetFunction(setting.function, setting.baseColor,
+                        setting.perpendicularColor, setting.newColor,
+                        setting.calculateInterference);
+  }
+  pruneVertices();
+}
+
 void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
                                             const uint32_t baseColor,
                                             const uint32_t perpendicularColor,
@@ -137,7 +121,6 @@ void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
                                           newColor, calculateInterference);
     }
   }
-  fixVertexConnectivity();
 }
 
 void InterferencePlane::addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
@@ -319,7 +302,10 @@ void InterferencePlane::computeInterferenceWithColor(
     const EdgeCoordinate &coord, const uint32_t color) {
   std::set<std::shared_ptr<EdgeGroup>> groups;
   for (const auto &[other, group] : edges_) {
-    if (other.color == color) {
+    if (other.color == color &&
+        (coord.orientation == Orientation::PARALLEL &&
+             other.orientation == Orientation::PARALLEL ||
+         other.color == coord.color)) {
       groups.insert(group);
     }
   }
@@ -426,140 +412,6 @@ bool InterferencePlane::areEdgesContinuous(
     successorEdges.insert(coord.id);
   }
   return !areSetsDisjoint(validEdges, successorEdges);
-}
-
-InterferencePlane::VertexRange InterferencePlane::getEdgeBounds(
-    const EdgeCoordinate &coord) const {
-  // This is a very inefficient algorithm because there is a lot of redundancy,
-  // it may be good in the future to offer this only as a bulk calculation
-  return VertexRange(assembly_, expectToFind(edges_, coord)->second->line,
-                     getEdgeBound<false>(coord), getEdgeBound<true>(coord));
-}
-
-template <bool IsForward>
-uint32_t InterferencePlane::getEdgeBound(const EdgeCoordinate &coord) const {
-  // If forward, find the maximum segment that reaches the forward-adjacent edge
-  // Set up iterators
-  std::shared_ptr<EdgeGroup> group = expectToFind(edges_, coord)->second;
-  using PointSet = std::set<uint32_t, Comparator>;
-  using Iterator =
-      typename std::conditional<IsForward, PointSet::const_iterator,
-                                PointSet::const_reverse_iterator>::type;
-  Iterator sourceIt, destIt, endIt;
-  if constexpr (IsForward) {
-    sourceIt = group->points.begin();
-    endIt = group->points.end();
-  } else {
-    sourceIt = group->points.rbegin();
-    endIt = group->points.rend();
-  }
-  destIt = std::next(sourceIt);
-
-  uint32_t output = *sourceIt;
-  if (coord.orientation == Orientation::PARALLEL) {
-    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
-    uint32_t nextEdge = IsForward ? adjacency.second : adjacency.first;
-    for (; destIt != endIt; sourceIt = destIt++) {
-      std::set<uint32_t> edges =
-          getReachableEdges<IsForward>(coord, IsForward ? *sourceIt : *destIt,
-                                       IsForward ? *destIt : *sourceIt);
-      if (edges.find(coord.id) != edges.end() ||
-          edges.find(nextEdge) != edges.end()) {
-        output = *destIt;
-      }
-    }
-  } else {
-    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
-    uint32_t nextEdge = coord.orientation == Orientation::INCOMING_PERPENDICULAR
-                            ? adjacency.second
-                            : adjacency.first;
-    uint32_t nextColor =
-        (coord.orientation == Orientation::INCOMING_PERPENDICULAR) ^ IsForward
-            ? coord.color
-            : expectToFind(colorAdjacency_, coord.color)->second;
-    for (; destIt != endIt; sourceIt = destIt++) {
-      std::set<uint32_t> colors = getReachableColorsMatchingEdge<IsForward>(
-          coord, IsForward ? *sourceIt : *destIt,
-          IsForward ? *destIt : *sourceIt, nextEdge);
-      if (colors.find(nextColor) != colors.end()) {
-        output = *destIt;
-      }
-    }
-    // Find correct edge if it is at the end and in the wrong orientation
-    for (const Graph::ConstEdge edge :
-         IsForward ? graph_.getEdgesToVertex(*sourceIt)
-                   : graph_.getEdgesFromVertex(*sourceIt)) {
-      for (const EdgeCoordinate &other : edge.getValue()->edges) {
-        if ((other.id == coord.id || other.id == nextEdge) &&
-            other.color == nextColor &&
-            other.orientation == Orientation::PARALLEL) {
-          return *sourceIt;
-        }
-      }
-    }
-  }
-  return output;
-}
-
-template <bool IsForward>
-std::set<uint32_t> InterferencePlane::getReachableEdges(
-    const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1) const {
-  std::set<uint32_t> output;
-  for (const EdgeCoordinate &other : getReachable<IsForward>(v0, v1)) {
-    if (other.id != coord.id) {
-      output.emplace(other.id);
-    }
-  }
-  return output;
-}
-
-template <bool IsForward>
-std::set<uint32_t> InterferencePlane::getReachableColorsMatchingEdge(
-    const EdgeCoordinate &coord, const uint32_t v0, const uint32_t v1,
-    const uint32_t otherEdgeId) const {
-  std::set<uint32_t> output;
-  for (const EdgeCoordinate &other : getReachable<IsForward>(v0, v1)) {
-    if ((other.id == coord.id || other.id == otherEdgeId) &&
-        other.orientation == Orientation::PARALLEL) {
-      output.emplace(other.color);
-    }
-  }
-  return output;
-}
-
-template <bool IsForward>
-std::set<InterferencePlane::EdgeCoordinate> InterferencePlane::getReachable(
-    const uint32_t v0, const uint32_t v1) const {
-  std::set<EdgeCoordinate> output;
-  uint32_t centralVertex = IsForward ? v1 : v0;
-  auto reachable = Graph::unwrap(graph_.getVertex(centralVertex))
-                       .getValue()
-                       .getReachablePoints<IsForward>(IsForward ? v0 : v1);
-  for (const uint32_t vertex : reachable) {
-    for (const EdgeCoordinate &coord :
-         Graph::unwrap(IsForward ? graph_.getEdge(centralVertex, vertex)
-                                 : graph_.getEdge(vertex, centralVertex))
-             .getValue()
-             ->edges) {
-      if (isInEstimatedBounds(coord, v0, v1)) {
-        output.emplace(coord);
-      }
-    }
-  }
-  return output;
-}
-
-bool InterferencePlane::isInEstimatedBounds(const EdgeCoordinate &coord,
-                                            const uint32_t v0,
-                                            const uint32_t v1) const {
-  auto boundsIt = estimatedBounds_.find(coord);
-  if (boundsIt == estimatedBounds_.end()) {
-    return true;
-  }
-  auto bounds = boundsIt->second;
-  std::shared_ptr<EdgeGroup> group = expectToFind(edges_, coord)->second;
-  return group->points.key_comp().greaterThanOrEqual(v0, bounds.first) &&
-         group->points.key_comp().lessThanOrEqual(v1, bounds.second);
 }
 
 bool InterferencePlane::pruneVertices() {

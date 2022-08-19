@@ -77,7 +77,7 @@ void DesmosOutput::drawPoint(const std::string &label, const Vec2 point,
 
 void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
                             const std::string &label, const uint32_t color) {
-  const float OFFSET = 0.02;
+  const float OFFSET = -0.02;
   uint32_t count =
       edgeCount_.emplace(std::pair<uint32_t, uint32_t>(source, dest), 0)
           .first->second++;
@@ -86,11 +86,7 @@ void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
   std::stringstream ss;
   ss << std::fixed;
   DirectedLine line = DirectedLine::fromPoints(a, b)->getParallelLineWithOffset(
-      count * OFFSET *
-          (std::abs(angle(a - b, Vec2(1, 0))) - std::numbers::pi / 2 < 1e-6
-               ? 1
-               : -1) -
-      OFFSET / 2);
+      count * OFFSET + OFFSET / 2);
   a = *line.getIntersection(line.getPerpendicularLineThroughPoint(a, true));
   b = *line.getIntersection(line.getPerpendicularLineThroughPoint(b, true));
   ss << line;

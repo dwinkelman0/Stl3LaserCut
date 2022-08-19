@@ -48,7 +48,7 @@ struct LoopPlaneTestCase {
 };
 
 std::ostream &operator<<(std::ostream &os, const LoopPlaneTestCase &tc) {
-  os << tc.name << " (" << tc.points.size() << " loops)";
+  os << tc.name;
   return os;
 }
 
@@ -121,5 +121,6 @@ INSTANTIATE_TEST_SUITE_P(
                 ch::make(true, {{3, ch::make(false, {{3, {}}, {3, {}}})}})},
         LoopPlaneTestCase{
             SAMPLE(tangentPositiveAndNegativeTriangles),
-            .characteristic = ch::make(true, {{3, {}}, {6, {}}})}));
+            .characteristic = ch::make(true, {{3, {}}, {6, {}}})}),
+    testing::PrintToStringParamName());
 }  // namespace stl3lasercut

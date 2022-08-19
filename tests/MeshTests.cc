@@ -22,7 +22,7 @@ struct MeshTestCase {
 };
 
 std::ostream &operator<<(std::ostream &os, const MeshTestCase &mesh) {
-  os << mesh.name << " (" << mesh.triangles.size() << " triangles)";
+  os << mesh.name;
   return os;
 }
 
@@ -111,5 +111,6 @@ INSTANTIATE_TEST_SUITE_P(
             .characteristic = {.planes = 6, .vertices = 5, .edges = 9}},
         MeshTestCase{
             SAMPLE(dimpleFace),
-            .characteristic = {.planes = 7, .vertices = 7, .edges = 12}}));
+            .characteristic = {.planes = 7, .vertices = 7, .edges = 12}}),
+    testing::PrintToStringParamName());
 }  // namespace stl3lasercut
