@@ -147,162 +147,134 @@ TEST_P(InterferencePlaneOffset, Offset) {
             GetParam().characteristic.edges);
 }
 
+namespace offset {
+std::vector<InterferencePlane::OffsetCalculation> single(
+    const InterferencePlane::OffsetFunction &function,
+    const bool calculateInterference) {
+  return {InterferencePlane::OffsetCalculation{
+      .function = function,
+      .baseColor = BASE_COLOR,
+      .perpendicularColor = BASE_COLOR,
+      .newColor = OFFSET_COLOR,
+      .calculateInterference = calculateInterference}};
+}
+
+InterferencePlane::OffsetCalculation first(
+    const InterferencePlane::OffsetFunction &function,
+    const bool calculateInterference) {
+  return InterferencePlane::OffsetCalculation{
+      .function = function,
+      .baseColor = BASE_COLOR,
+      .perpendicularColor = BASE_COLOR,
+      .newColor = INTERMEDIATE_COLOR,
+      .calculateInterference = calculateInterference};
+}
+
+InterferencePlane::OffsetCalculation second(
+    const InterferencePlane::OffsetFunction &function,
+    const bool calculateInterference) {
+  return InterferencePlane::OffsetCalculation{
+      .function = function,
+      .baseColor = INTERMEDIATE_COLOR,
+      .perpendicularColor = INTERMEDIATE_COLOR,
+      .newColor = OFFSET_COLOR,
+      .calculateInterference = calculateInterference};
+}
+
+InterferencePlane::OffsetFunction constant(const float offset) {
+  return [offset](const auto &a, const auto &b) { return offset; };
+}
+
+InterferencePlane::OffsetFunction ring(const RingVector<float> &ring) {
+  auto counter = std::make_shared<uint32_t>(0);
+  return [ring, counter](const auto &a, const auto &b) {
+    return ring[(*counter)++];
+  };
+}
+}  // namespace offset
+
 INSTANTIATE_TEST_SUITE_P(
     InterferencePlane, InterferencePlaneOffset,
     testing::Values(
         InterferencePlaneOffsetCase{
             .name = "acuteTriangle_noOffset",
             .points = samples::acuteTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return 0; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = false}},
+            .calculations = offset::single(offset::constant(0), true),
             .characteristic = Characteristic{.vertices = 3, .edges = 3}},
         InterferencePlaneOffsetCase{
             .name = "acuteTriangle_noInterference",
             .points = samples::acuteTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return -1; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = false}},
+            .calculations = offset::single(offset::constant(-1), false),
             .characteristic = Characteristic{.vertices = 6, .edges = 6}},
         InterferencePlaneOffsetCase{
             .name = "acuteTriangle_interference",
             .points = samples::acuteTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return -1; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(-1), true),
             .characteristic = Characteristic{.vertices = 12, .edges = 18}},
         InterferencePlaneOffsetCase{
             .name = "acuteTriangle_middleInterference",
             .points = samples::acuteTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return -1; },
-                                 .baseColor = BASE_COLOR,
-                                 .perpendicularColor = BASE_COLOR,
-                                 .newColor = INTERMEDIATE_COLOR,
-                                 .calculateInterference = true},
-                             InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return 0.5; },
-                                 .baseColor = INTERMEDIATE_COLOR,
-                                 .perpendicularColor = INTERMEDIATE_COLOR,
-                                 .newColor = OFFSET_COLOR,
-                                 .calculateInterference = false}},
+            .calculations = {offset::first(offset::constant(-1), false),
+                             offset::second(offset::constant(0.5), true)},
             .characteristic = Characteristic{.vertices = 15, .edges = 21}},
         InterferencePlaneOffsetCase{
             .name = "acuteTriangle_doubleInterference",
             .points = samples::acuteTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return -1; },
-                                 .baseColor = BASE_COLOR,
-                                 .perpendicularColor = BASE_COLOR,
-                                 .newColor = INTERMEDIATE_COLOR,
-                                 .calculateInterference = true},
-                             InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return 0.5; },
-                                 .baseColor = INTERMEDIATE_COLOR,
-                                 .perpendicularColor = INTERMEDIATE_COLOR,
-                                 .newColor = OFFSET_COLOR,
-                                 .calculateInterference = true}},
+            .calculations = {offset::first(offset::constant(-1), true),
+                             offset::second(offset::constant(0.5), true)},
             .characteristic = Characteristic{.vertices = 21, .edges = 33}},
         InterferencePlaneOffsetCase{
             .name = "rightTriangle",
             .points = samples::rightTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return 0.5; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(-0.5), true),
             .characteristic = Characteristic{.vertices = 12, .edges = 18}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_noOffset",
             .points = samples::obtuseTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return 0; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = false}},
+            .calculations = offset::single(offset::constant(0), true),
             .characteristic = Characteristic{.vertices = 3, .edges = 3}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_positiveOffset",
             .points = samples::obtuseTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return 0.2; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(0.2), true),
             .characteristic = Characteristic{.vertices = 18, .edges = 30}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_negativeOffset",
             .points = samples::obtuseTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return -0.2; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(-0.2), true),
             .characteristic = Characteristic{.vertices = 16, .edges = 26}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_middleInterference",
             .points = samples::obtuseTriangle,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return -1; },
-                                 .baseColor = BASE_COLOR,
-                                 .perpendicularColor = BASE_COLOR,
-                                 .newColor = INTERMEDIATE_COLOR,
-                                 .calculateInterference = false},
-                             InterferencePlane::OffsetCalculation{
-                                 .function = [](const auto &a,
-                                                const auto &b) { return 0.5; },
-                                 .baseColor = INTERMEDIATE_COLOR,
-                                 .perpendicularColor = INTERMEDIATE_COLOR,
-                                 .newColor = OFFSET_COLOR,
-                                 .calculateInterference = true}},
+            .calculations = {offset::first(offset::constant(-1), false),
+                             offset::second(offset::constant(0.5), true)},
             .characteristic = Characteristic{.vertices = 25, .edges = 41}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_positiveOffset",
             .points = samples::obtuseConcavePolygon,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return 0.2; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(0.2), true),
             .characteristic = Characteristic{.vertices = 30, .edges = 52}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_negativeOffset",
             .points = samples::obtuseConcavePolygon,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return -0.2; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = true}},
+            .calculations = offset::single(offset::constant(-0.2), true),
             .characteristic = Characteristic{.vertices = 28, .edges = 48}},
         InterferencePlaneOffsetCase{
             .name = "disjointTriangles_negativeOffset",
             .points = samples::disjointTriangles,
-            .calculations = {InterferencePlane::OffsetCalculation{
-                .function = [](const auto &a, const auto &b) { return -1; },
-                .baseColor = BASE_COLOR,
-                .perpendicularColor = BASE_COLOR,
-                .newColor = OFFSET_COLOR,
-                .calculateInterference = false}},
-            .characteristic = Characteristic{.vertices = 18, .edges = 24}}),
+            .calculations = offset::single(offset::constant(-1), false),
+            .characteristic = Characteristic{.vertices = 18, .edges = 24}},
+        InterferencePlaneOffsetCase{
+            .name = "obtuseTriangle_variableNegativeOffset",
+            .points = samples::obtuseTriangle,
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({-1, -0.5, -0.2})), true),
+            .characteristic = Characteristic{.vertices = 17, .edges = 28}},
+        InterferencePlaneOffsetCase{
+            .name = "obtuseTriangle_partialZeroOffset",
+            .points = samples::obtuseTriangle,
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({-1, -0, 0})), true),
+            .characteristic = Characteristic{.vertices = 7, .edges = 10}}),
     testing::PrintToStringParamName());
 }  // namespace stl3lasercut

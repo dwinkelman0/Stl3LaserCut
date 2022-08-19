@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <stl3lasercut/Line.h>
 #include <stl3lasercut/LoopPlane.h>
+#include <stl3lasercut/RangeUnion.h>
 #include <stl3lasercut/Util.h>
 #include <stl3lasercut/VertexConnectivityGraph.h>
 
@@ -87,6 +88,8 @@ class InterferencePlane {
         const std::pair<EdgeCoordinate, EdgeCoordinate> &a);
   };
 
+  using Range = RangeUnion<uint32_t, Comparator>;
+
   using Graph = algo::DirectedGraph<algo::Unit, std::shared_ptr<EdgeGroup>,
                                     MultiVertexConnectivityGraph>;
 
@@ -140,7 +143,6 @@ class InterferencePlane {
   void computeInterferenceWithAdjacentEdges(const EdgeCoordinate &coord);
   void computeInterferenceWithColor(const EdgeCoordinate &coord,
                                     const uint32_t color);
-
   void findAndInsertGroupIntersection(const std::shared_ptr<EdgeGroup> &a,
                                       const std::shared_ptr<EdgeGroup> &b);
   void insertVertexInEdgeGroup(const std::shared_ptr<EdgeGroup> &group,
@@ -152,8 +154,10 @@ class InterferencePlane {
   void fixVertexConnectivity();
   bool areEdgesContinuous(const std::shared_ptr<EdgeGroup> &incoming,
                           const std::shared_ptr<EdgeGroup> &outgoing) const;
-
   bool pruneVertices();
+
+  void calculateEdgeBounds();
+  bool restrictEdgeBounds();
 
  private:
   std::shared_ptr<AssemblyPlane> assembly_;
@@ -171,6 +175,6 @@ class InterferencePlane {
                               two adjacent edges belong to the same group. Not
                               meant to be exhaustive because intersections can
                               be inferred in other ways in most cases. */
-  std::map<EdgeCoordinate, std::pair<uint32_t, uint32_t>> estimatedBounds_;
+  std::map<EdgeCoordinate, Range> edgeBounds_;
 };
 }  // namespace stl3lasercut

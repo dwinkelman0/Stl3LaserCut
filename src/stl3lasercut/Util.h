@@ -55,17 +55,17 @@ typename T::iterator expectToFind(T &container,
   return it;
 }
 
-template <typename T>
-bool areSetsDisjoint(const std::set<T> &set1, const std::set<T> &set2) {
+template <typename T, class Compare>
+bool areSetsDisjoint(const std::set<T, Compare> &set1, const std::set<T, Compare> &set2) {
   if (set1.empty() || set2.empty()) return true;
 
   typename std::set<T>::const_iterator it1 = set1.begin(), it1End = set1.end();
   typename std::set<T>::const_iterator it2 = set2.begin(), it2End = set2.end();
 
-  if (*it1 > *set2.rbegin() || *it2 > *set1.rbegin()) return true;
+  if (*set2.rbegin() < *it1 || *set1.rbegin() < *it2) return true;
 
   while (it1 != it1End && it2 != it2End) {
-    if (*it1 == *it2) return false;
+    if (!(*it1 < *it2) && !(*it2 < *it1)) return false;
     if (*it1 < *it2) {
       it1++;
     } else {

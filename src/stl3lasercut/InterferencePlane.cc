@@ -96,6 +96,7 @@ void InterferencePlane::applyOffsetFunctions(
                         setting.calculateInterference);
   }
   pruneVertices();
+  fixVertexConnectivity();
 }
 
 void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
@@ -291,8 +292,7 @@ void InterferencePlane::computeInterferenceWithAdjacentEdges(
       groups.insert(group);
     }
   }
-  auto edgeIt = edges_.find(coord);
-  assert(edgeIt != edges_.end());
+  auto edgeIt = expectToFind(edges_, coord);
   for (const std::shared_ptr<EdgeGroup> &group : groups) {
     findAndInsertGroupIntersection(edgeIt->second, group);
   }
@@ -309,8 +309,7 @@ void InterferencePlane::computeInterferenceWithColor(
       groups.insert(group);
     }
   }
-  auto edgeIt = edges_.find(coord);
-  assert(edgeIt != edges_.end());
+  auto edgeIt = expectToFind(edges_, coord);
   for (const std::shared_ptr<EdgeGroup> &group : groups) {
     findAndInsertGroupIntersection(edgeIt->second, group);
   }
@@ -318,15 +317,18 @@ void InterferencePlane::computeInterferenceWithColor(
 
 void InterferencePlane::findAndInsertGroupIntersection(
     const std::shared_ptr<EdgeGroup> &a, const std::shared_ptr<EdgeGroup> &b) {
-  std::optional<Vec2> intersection = a->line.getIntersection(b->line);
-  if (intersection) {
-    // Create a new vertex in the assembly
-    uint32_t newVertex = assembly_->pointLookup_(*intersection);
-    bool vertexIsNew = addPoint(newVertex);
+  // Check for intersection
+  if (areSetsDisjoint(a->points, b->points)) {
+    std::optional<Vec2> intersection = a->line.getIntersection(b->line);
+    if (intersection) {
+      // Create a new vertex in the assembly
+      uint32_t newVertex = assembly_->pointLookup_(*intersection);
+      bool vertexIsNew = addPoint(newVertex);
 
-    // Splice the new vertex in the edge groups
-    insertVertexInEdgeGroup(a, newVertex);
-    insertVertexInEdgeGroup(b, newVertex);
+      // Splice the new vertex in the edge groups
+      insertVertexInEdgeGroup(a, newVertex);
+      insertVertexInEdgeGroup(b, newVertex);
+    }
   }
 }
 
@@ -403,8 +405,7 @@ bool InterferencePlane::areEdgesContinuous(
   std::set<uint32_t> validEdges;
   for (const EdgeCoordinate coord : incoming->edges) {
     validEdges.insert(coord.id);
-    auto it = edgeAdjacency_.find(coord.id);
-    assert(it != edgeAdjacency_.end());
+    auto it = expectToFind(edgeAdjacency_, coord.id);
     validEdges.insert(it->second.second);
   }
   std::set<uint32_t> successorEdges;
@@ -439,9 +440,13 @@ bool InterferencePlane::pruneVertices() {
                         pruned.end(), std::inserter(newSet, newSet.begin()));
     std::swap(newSet, group->points);
   }
-  if (!pruned.empty()) {
-    fixVertexConnectivity();
-  }
   return !pruned.empty();
 }
+
+void InterferencePlane::calculateEdgeBounds() {
+  while (restrictEdgeBounds()) {
+  }
+}
+
+bool InterferencePlane::restrictEdgeBounds() { return false; }
 }  // namespace stl3lasercut
