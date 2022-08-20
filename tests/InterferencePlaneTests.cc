@@ -75,7 +75,7 @@ TEST_P(InterferencePlaneSetup, Setup) {
     groupCount.emplace(edge.getValue(), 0).first->second++;
     ASSERT_EQ(edge.getValue()->edges.begin()->color, BASE_COLOR);
     ASSERT_EQ(edge.getValue()->edges.begin()->orientation,
-              InterferencePlane::Orientation::PARALLEL);
+              EdgeCoordinate::Orientation::PARALLEL);
   }
   for (const auto &[coord, group] : interferencePlane_.edges_) {
     auto it = interferencePlane_.edgeAdjacency_.find(coord.id);
@@ -290,10 +290,7 @@ struct InterferencePlaneEdgeBoundsCase {
   std::string name;
   std::vector<std::vector<Vec2>> points;
   std::vector<InterferencePlane::OffsetCalculation> calculations;
-  std::map<InterferencePlane::EdgeCoordinate,
-           std::pair<InterferencePlane::EdgeCoordinate,
-                     InterferencePlane::EdgeCoordinate>>
-      bounds;
+  std::map<EdgeCoordinate, std::pair<EdgeCoordinate, EdgeCoordinate>> bounds;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const InterferencePlaneSetupCase &tc);
@@ -318,9 +315,8 @@ class InterferencePlaneEdgeBounds
     interferencePlane_.finalize();
   }
 
-  std::optional<uint32_t> getVertex(
-      const InterferencePlane::EdgeCoordinate &a,
-      const InterferencePlane::EdgeCoordinate &b) {
+  std::optional<uint32_t> getVertex(const EdgeCoordinate &a,
+                                    const EdgeCoordinate &b) {
     auto aGroup = expectToFind(interferencePlane_.edges_, a)->second;
     auto bGroup = expectToFind(interferencePlane_.edges_, b)->second;
     if (aGroup != bGroup) {
@@ -355,11 +351,10 @@ TEST_P(InterferencePlaneEdgeBounds, Bounds) {
 }
 
 namespace bounds {
-InterferencePlane::EdgeCoordinate edge(
-    const uint32_t id, const uint32_t color,
-    const InterferencePlane::Orientation orientation =
-        InterferencePlane::Orientation::PARALLEL) {
-  return InterferencePlane::EdgeCoordinate(id, color, orientation);
+EdgeCoordinate edge(const uint32_t id, const uint32_t color,
+                    const EdgeCoordinate::Orientation orientation =
+                        EdgeCoordinate::Orientation::PARALLEL) {
+  return EdgeCoordinate(id, color, orientation);
 }
 }  // namespace bounds
 
@@ -392,11 +387,11 @@ INSTANTIATE_TEST_SUITE_P(
                   {bounds::edge(2, OFFSET_COLOR), bounds::edge(0, BASE_COLOR)}},
                  {bounds::edge(
                       0, OFFSET_COLOR,
-                      InterferencePlane::Orientation::OUTGOING_PERPENDICULAR),
+                      EdgeCoordinate::Orientation::OUTGOING_PERPENDICULAR),
                   {bounds::edge(0, OFFSET_COLOR), bounds::edge(0, BASE_COLOR)}},
                  {bounds::edge(
                       3, OFFSET_COLOR,
-                      InterferencePlane::Orientation::INCOMING_PERPENDICULAR),
+                      EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR),
                   {bounds::edge(3, BASE_COLOR),
                    bounds::edge(0, OFFSET_COLOR)}}}},
         InterferencePlaneEdgeBoundsCase{
@@ -404,11 +399,10 @@ INSTANTIATE_TEST_SUITE_P(
             .points = samples::straightAnglePolygon,
             .calculations = offset::single(
                 offset::ring(RingVector<float>({-0.3, -0.2, 0, 0})), false),
-            // .calculations = {offset::single(offset::constant(-0.2), true)},
             .bounds =
                 {{bounds::edge(
                       0, OFFSET_COLOR,
-                      InterferencePlane::Orientation::INCOMING_PERPENDICULAR),
+                      EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR),
                   {bounds::edge(0, OFFSET_COLOR),
                    bounds::edge(1, OFFSET_COLOR)}}}}),
     testing::PrintToStringParamName());

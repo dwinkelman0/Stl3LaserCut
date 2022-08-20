@@ -8,18 +8,16 @@
 #include <numbers>
 
 namespace stl3lasercut {
-bool InterferencePlane::EdgeCoordinate::operator<(
-    const EdgeCoordinate &other) const {
+bool EdgeCoordinate::operator<(const EdgeCoordinate &other) const {
   return std::tie(id, color, orientation) <
          std::tie(other.id, other.color, other.orientation);
 }
 
-std::ostream &operator<<(std::ostream &os,
-                         const InterferencePlane::EdgeCoordinate &coord) {
+std::ostream &operator<<(std::ostream &os, const EdgeCoordinate &coord) {
   os << coord.id << "."
-     << (coord.orientation == InterferencePlane::Orientation::PARALLEL ? "par"
+     << (coord.orientation == EdgeCoordinate::Orientation::PARALLEL ? "par"
          : coord.orientation ==
-                 InterferencePlane::Orientation::INCOMING_PERPENDICULAR
+                 EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR
              ? "inperp"
              : "outperp")
      << "." << coord.color;
@@ -56,7 +54,7 @@ InterferencePlane::EdgeGroup::EdgeGroup(
 std::ostream &operator<<(std::ostream &os,
                          const InterferencePlane::EdgeGroup &group) {
   std::copy(group.edges.begin(), group.edges.end(),
-            std::ostream_iterator<InterferencePlane::EdgeCoordinate>(os, ", "));
+            std::ostream_iterator<EdgeCoordinate>(os, ", "));
   os << ": ";
   std::copy(group.points.begin(), group.points.end(),
             std::ostream_iterator<uint32_t>(os, " -> "));
@@ -69,7 +67,7 @@ bool InterferencePlane::KnownIntersectionsComparator::operator()(
   return getCanonicalOrder(a) < getCanonicalOrder(b);
 }
 
-std::pair<InterferencePlane::EdgeCoordinate, InterferencePlane::EdgeCoordinate>
+std::pair<EdgeCoordinate, EdgeCoordinate>
 InterferencePlane::KnownIntersectionsComparator::getCanonicalOrder(
     const std::pair<EdgeCoordinate, EdgeCoordinate> &a) {
   return a.first < a.second
@@ -111,7 +109,7 @@ void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
       newColor, std::pair<uint32_t, bool>(baseColor, calculateInterference));
   for (const auto &[coord, group] : edges_) {
     if (coord.color == baseColor &&
-        coord.orientation == Orientation::PARALLEL) {
+        coord.orientation == EdgeCoordinate::Orientation::PARALLEL) {
       // Fix this to get assembly plane of corresponding edge
       float offset = func(assembly_, assembly_);
       addParallelEdgeFromOffset(coord, newColor, offset, calculateInterference);
@@ -119,7 +117,7 @@ void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
   }
   for (const auto &[coord, group] : edges_) {
     if (coord.color == perpendicularColor &&
-        coord.orientation == Orientation::PARALLEL) {
+        coord.orientation == EdgeCoordinate::Orientation::PARALLEL) {
       auto adjacencyIt = expectToFind(edgeAdjacency_, coord.id);
       addPerpendicularEdgesAtIntersection(coord.id, adjacencyIt->second.second,
                                           baseColor, perpendicularColor,
@@ -155,7 +153,7 @@ bool InterferencePlane::addPoint(const uint32_t index) {
 
 void InterferencePlane::addEdge(const uint32_t v0, const uint32_t v1,
                                 const uint32_t edgeId, const uint32_t color) {
-  EdgeCoordinate coord(edgeId, color, Orientation::PARALLEL);
+  EdgeCoordinate coord(edgeId, color, EdgeCoordinate::Orientation::PARALLEL);
   std::optional<Graph::EdgeIterator> existingEdge = graph_.getEdge(v0, v1);
   std::shared_ptr<EdgeGroup> group(nullptr);
   if (existingEdge) {
@@ -195,8 +193,8 @@ void InterferencePlane::addAngle(const uint32_t v0, const uint32_t v1,
       .first->second.first = e0;
   knownIntersections_.emplace(
       std::pair<EdgeCoordinate, EdgeCoordinate>(
-          EdgeCoordinate(e0, color, Orientation::PARALLEL),
-          EdgeCoordinate(e1, color, Orientation::PARALLEL)),
+          EdgeCoordinate(e0, color, EdgeCoordinate::Orientation::PARALLEL),
+          EdgeCoordinate(e1, color, EdgeCoordinate::Orientation::PARALLEL)),
       v1);
 }
 
@@ -204,7 +202,8 @@ void InterferencePlane::addParallelEdgeFromOffset(
     const EdgeCoordinate &coord, const uint32_t newColor, const float offset,
     const bool calculateInterference) {
   auto it = expectToFind(edges_, coord);
-  EdgeCoordinate newCoord(coord.id, newColor, Orientation::PARALLEL);
+  EdgeCoordinate newCoord(coord.id, newColor,
+                          EdgeCoordinate::Orientation::PARALLEL);
   DirectedLine offsetLine = it->second->line.getParallelLineWithOffset(offset);
   std::shared_ptr<EdgeGroup> group =
       groupMap_
@@ -224,11 +223,11 @@ void InterferencePlane::addPerpendicularEdgesAtIntersection(
     const uint32_t perpendicularColor, const uint32_t newColor,
     const bool calculateInterference) {
   auto incomingIt = expectToFind(
-      edges_,
-      EdgeCoordinate(incoming, perpendicularColor, Orientation::PARALLEL));
+      edges_, EdgeCoordinate(incoming, perpendicularColor,
+                             EdgeCoordinate::Orientation::PARALLEL));
   auto outgoingIt = expectToFind(
-      edges_,
-      EdgeCoordinate(outgoing, perpendicularColor, Orientation::PARALLEL));
+      edges_, EdgeCoordinate(outgoing, perpendicularColor,
+                             EdgeCoordinate::Orientation::PARALLEL));
   float angle = incomingIt->second->line.getAngle(outgoingIt->second->line);
   if (std::abs(angle) < std::numbers::pi / 2) {
     std::optional<uint32_t> vertex =
@@ -256,9 +255,11 @@ void InterferencePlane::addPerpendicularEdgeThroughPoint(
     const uint32_t id, const uint32_t baseColor, const uint32_t newColor,
     const bool calculateInterference) {
   auto baseIt = expectToFind(
-      edges_, EdgeCoordinate(id, baseColor, Orientation::PARALLEL));
-  auto offsetIt =
-      expectToFind(edges_, EdgeCoordinate(id, newColor, Orientation::PARALLEL));
+      edges_,
+      EdgeCoordinate(id, baseColor, EdgeCoordinate::Orientation::PARALLEL));
+  auto offsetIt = expectToFind(
+      edges_,
+      EdgeCoordinate(id, newColor, EdgeCoordinate::Orientation::PARALLEL));
   DirectedLine::ParallelComparator comparator;
   if (comparator(baseIt->second->line, offsetIt->second->line) ||
       comparator(offsetIt->second->line, baseIt->second->line)) {
@@ -268,9 +269,10 @@ void InterferencePlane::addPerpendicularEdgeThroughPoint(
     bool isRightHanded = isIncoming ^ (comparator(baseIt->second->line,
                                                   offsetIt->second->line) ||
                                        isNegativeAngle);
-    EdgeCoordinate newCoord(id, newColor,
-                            isIncoming ? Orientation::INCOMING_PERPENDICULAR
-                                       : Orientation::OUTGOING_PERPENDICULAR);
+    EdgeCoordinate newCoord(
+        id, newColor,
+        isIncoming ? EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR
+                   : EdgeCoordinate::Orientation::OUTGOING_PERPENDICULAR);
     DirectedLine perpendicularLine =
         baseIt->second->line.getPerpendicularLineThroughPoint(
             assembly_->getPoint(vertex), isRightHanded);
@@ -476,7 +478,7 @@ bool InterferencePlane::restrictEdgeBounds() {
     return [coord, nextEdgeId](const EdgeCoordinate &other) {
       return (other.id == coord.id &&
               (other.color != coord.color ||
-               other.orientation != Orientation::PARALLEL)) ||
+               other.orientation != EdgeCoordinate::Orientation::PARALLEL)) ||
              other.id == nextEdgeId;
     };
   };
@@ -494,7 +496,7 @@ bool InterferencePlane::restrictEdgeBounds() {
           return (other.id == coord.id || other.id == nextEdgeId) &&
                  (other.color == coord.color ||
                   other.color == nextColor && isDerived) &&
-                 other.orientation == Orientation::PARALLEL;
+                 other.orientation == EdgeCoordinate::Orientation::PARALLEL;
         };
   };
 
@@ -525,7 +527,7 @@ bool InterferencePlane::restrictEdgeBounds() {
     for (const EdgeCoordinate &coord : group->edges) {
       auto lowerIt = group->points.begin();
       auto upperIt = group->points.rbegin();
-      if (coord.orientation == Orientation::PARALLEL) {
+      if (coord.orientation == EdgeCoordinate::Orientation::PARALLEL) {
         lowerIt = std::find_if(group->points.begin(), group->points.end(),
                                checkVertex(makeParallelPredicate(coord, true)));
         upperIt =
@@ -533,7 +535,8 @@ bool InterferencePlane::restrictEdgeBounds() {
                          checkVertex(makeParallelPredicate(coord, false)));
       } else {
         auto predicate = checkVertex(makePerpendicularPredicate(
-            coord, coord.orientation != Orientation::INCOMING_PERPENDICULAR));
+            coord, coord.orientation !=
+                       EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR));
         lowerIt =
             std::find_if(group->points.begin(), group->points.end(), predicate);
         upperIt = std::find_if(group->points.rbegin(), group->points.rend(),

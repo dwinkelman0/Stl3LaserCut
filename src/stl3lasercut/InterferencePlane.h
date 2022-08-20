@@ -17,14 +17,7 @@ namespace stl3lasercut {
 class AssemblyPlane;
 class LoopPlane;
 
-/** An InterferencePlane performs offsets and dynamic intersection creation. */
-class InterferencePlane {
-  friend class DesmosOutput;
-  friend class InterferencePlaneEdgeBounds;
-  FRIEND_TEST(InterferencePlaneSetup, Setup);
-  FRIEND_TEST(InterferencePlaneOffset, Offset);
-  FRIEND_TEST(InterferencePlaneEdgeBounds, Bounds);
-
+class EdgeCoordinate {
  public:
   enum class Orientation {
     PARALLEL,
@@ -32,23 +25,28 @@ class InterferencePlane {
     OUTGOING_PERPENDICULAR
   };
 
-  class EdgeCoordinate {
-   public:
-    uint32_t id;
-    uint32_t color;
-    Orientation orientation;
+ public:
+  uint32_t id;
+  uint32_t color;
+  Orientation orientation;
 
-    EdgeCoordinate(const uint32_t id, const uint32_t color,
-                   const Orientation orientation)
-        : id(id), color(color), orientation(orientation) {}
+  EdgeCoordinate(const uint32_t id, const uint32_t color,
+                 const Orientation orientation)
+      : id(id), color(color), orientation(orientation) {}
 
-    bool operator<(const EdgeCoordinate &other) const;
+  bool operator<(const EdgeCoordinate &other) const;
 
-    friend std::ostream &operator<<(std::ostream &os,
-                                    const EdgeCoordinate &coord);
-  };
   friend std::ostream &operator<<(std::ostream &os,
                                   const EdgeCoordinate &coord);
+};
+
+/** An InterferencePlane performs offsets and dynamic intersection creation. */
+class InterferencePlane {
+  friend class DesmosOutput;
+  friend class InterferencePlaneEdgeBounds;
+  FRIEND_TEST(InterferencePlaneSetup, Setup);
+  FRIEND_TEST(InterferencePlaneOffset, Offset);
+  FRIEND_TEST(InterferencePlaneEdgeBounds, Bounds);
 
  private:
   struct Comparator {
