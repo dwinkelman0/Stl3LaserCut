@@ -20,10 +20,12 @@ class LoopPlane;
 /** An InterferencePlane performs offsets and dynamic intersection creation. */
 class InterferencePlane {
   friend class DesmosOutput;
+  friend class InterferencePlaneEdgeBounds;
   FRIEND_TEST(InterferencePlaneSetup, Setup);
   FRIEND_TEST(InterferencePlaneOffset, Offset);
+  FRIEND_TEST(InterferencePlaneEdgeBounds, Bounds);
 
- private:
+ public:
   enum class Orientation {
     PARALLEL,
     INCOMING_PERPENDICULAR,
@@ -48,6 +50,7 @@ class InterferencePlane {
   friend std::ostream &operator<<(std::ostream &os,
                                   const EdgeCoordinate &coord);
 
+ private:
   struct Comparator {
    public:
     Comparator(const std::shared_ptr<AssemblyPlane> &assemblyPlane,
@@ -111,6 +114,7 @@ class InterferencePlane {
 
   void addLoopPlane(const std::shared_ptr<LoopPlane> &loopPlane);
   void applyOffsetFunctions(const std::vector<OffsetCalculation> &offsets);
+  void finalize();
 
  private:
   void applyOffsetFunction(const OffsetFunction &func, const uint32_t baseColor,
@@ -134,11 +138,10 @@ class InterferencePlane {
                                            const uint32_t perpendicularColor,
                                            const uint32_t newColor,
                                            const bool calculateInterference);
-  void addPerpendicularEdgeThroughPoint(const uint32_t vertex, bool isIncoming,
-                                        const uint32_t id,
-                                        const uint32_t baseColor,
-                                        const uint32_t newColor,
-                                        const bool calculateInterference);
+  void addPerpendicularEdgeThroughPoint(
+      const uint32_t vertex, const bool isIncoming, const bool isNegativeAngle,
+      const uint32_t id, const uint32_t baseColor, const uint32_t newColor,
+      const bool calculateInterference);
 
   void computeInterferenceWithAdjacentEdges(const EdgeCoordinate &coord);
   void computeInterferenceWithColor(const EdgeCoordinate &coord,

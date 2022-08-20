@@ -36,20 +36,21 @@ class RangeUnion {
     }
 
    private:
-    const Compare &comparator_;
+    Compare comparator_;
   };
 
  public:
   using RangeSet = std::set<Range, SetComparator>;
 
  public:
-  RangeUnion() : comparator_(), ranges_(SetComparator(comparator_)) {}
   RangeUnion(const Compare &comparator)
       : comparator_(comparator), ranges_(SetComparator(comparator_)) {}
 
   void insert(const T &lower, const T &upper) { insert({lower, upper}); }
 
+  bool isNull() const { return ranges_.empty(); }
   const RangeSet &getRanges() const { return ranges_; }
+  bool operator!=(const RangeUnion &other) { return ranges_ != other.ranges_; }
 
   bool contains(const T &value) const {
     return std::any_of(ranges_.begin(), ranges_.end(),
@@ -60,7 +61,7 @@ class RangeUnion {
   }
 
   RangeUnion operator&(const RangeUnion &other) const {
-    RangeUnion output;
+    RangeUnion output(comparator_);
     for (auto it1 = ranges_.begin(), it2 = other.ranges_.begin();
          it1 != ranges_.end() && it2 != other.ranges_.end();) {
       if (ranges_.key_comp()(*it1, *it2)) {
@@ -72,6 +73,9 @@ class RangeUnion {
                       std::min(it1->second, it2->second, comparator_));
         if (!comparator_(it2->second, it1->second)) {
           ++it1;
+          if (it1 == ranges_.end()) {
+            break;
+          }
         }
         if (!comparator_(it1->second, it2->second)) {
           ++it2;
@@ -82,7 +86,7 @@ class RangeUnion {
   }
 
   RangeUnion operator|(const RangeUnion &other) const {
-    RangeUnion output;
+    RangeUnion output(comparator_);
     for (const Range &range : ranges_) {
       output.insert(range);
     }
@@ -92,9 +96,9 @@ class RangeUnion {
     return output;
   }
 
-  template <typename T_>
+  template <class T_, class Compare_>
   friend std::ostream &operator<<(std::ostream &os,
-                                  const RangeUnion<T_> &rangeUnion);
+                                  const RangeUnion<T_, Compare_> &rangeUnion);
 
  private:
   void insert(const Range &range) {
@@ -117,9 +121,11 @@ class RangeUnion {
   RangeSet ranges_;
 };
 
-template <typename T>
-std::ostream &operator<<(std::ostream &os, const RangeUnion<T> &rangeUnion) {
-  for (const typename RangeUnion<T>::Range &range : rangeUnion.getRanges()) {
+template <class T, class Compare>
+std::ostream &operator<<(std::ostream &os,
+                         const RangeUnion<T, Compare> &rangeUnion) {
+  for (const typename RangeUnion<T, Compare>::Range &range :
+       rangeUnion.getRanges()) {
     os << "[" << range.first << ", " << range.second << "], ";
   }
   return os;

@@ -64,7 +64,8 @@ class InterferencePlaneSetup
       public testing::TestWithParam<InterferencePlaneSetupCase> {
  public:
   InterferencePlaneSetup()
-      : InterferencePlaneBaseTest(GetParam().points, GetParam().name) {}
+      : InterferencePlaneBaseTest(GetParam().points,
+                                  "setup_" + GetParam().name) {}
 };
 
 TEST_P(InterferencePlaneSetup, Setup) {
@@ -133,7 +134,8 @@ class InterferencePlaneOffset
       public testing::TestWithParam<InterferencePlaneOffsetCase> {
  public:
   InterferencePlaneOffset()
-      : InterferencePlaneBaseTest(GetParam().points, GetParam().name) {}
+      : InterferencePlaneBaseTest(GetParam().points,
+                                  "offset_" + GetParam().name) {}
 
   void SetUp() override {
     interferencePlane_.applyOffsetFunctions(GetParam().calculations);
@@ -141,6 +143,7 @@ class InterferencePlaneOffset
 };
 
 TEST_P(InterferencePlaneOffset, Offset) {
+  interferencePlane_.pruneVertices();
   ASSERT_EQ(interferencePlane_.graph_.getVertices().getCount(),
             GetParam().characteristic.vertices);
   ASSERT_EQ(interferencePlane_.graph_.getEdges().getCount(),
@@ -258,7 +261,7 @@ INSTANTIATE_TEST_SUITE_P(
             .name = "obtuseConcavePolygon_negativeOffset",
             .points = samples::obtuseConcavePolygon,
             .calculations = offset::single(offset::constant(-0.2), true),
-            .characteristic = Characteristic{.vertices = 28, .edges = 48}},
+            .characteristic = Characteristic{.vertices = 30, .edges = 52}},
         InterferencePlaneOffsetCase{
             .name = "disjointTriangles_negativeOffset",
             .points = samples::disjointTriangles,
@@ -276,5 +279,120 @@ INSTANTIATE_TEST_SUITE_P(
             .calculations = offset::single(
                 offset::ring(RingVector<float>({-1, -0, 0})), true),
             .characteristic = Characteristic{.vertices = 7, .edges = 10}}),
+    testing::PrintToStringParamName());
+
+struct InterferencePlaneEdgeBoundsCase {
+  std::string name;
+  std::vector<std::vector<Vec2>> points;
+  std::vector<InterferencePlane::OffsetCalculation> calculations;
+  std::map<InterferencePlane::EdgeCoordinate,
+           std::pair<InterferencePlane::EdgeCoordinate,
+                     InterferencePlane::EdgeCoordinate>>
+      bounds;
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const InterferencePlaneSetupCase &tc);
+};
+
+std::ostream &operator<<(std::ostream &os,
+                         const InterferencePlaneEdgeBoundsCase &tc) {
+  os << tc.name;
+  return os;
+}
+
+class InterferencePlaneEdgeBounds
+    : public InterferencePlaneBaseTest,
+      public testing::TestWithParam<InterferencePlaneEdgeBoundsCase> {
+ public:
+  InterferencePlaneEdgeBounds()
+      : InterferencePlaneBaseTest(GetParam().points,
+                                  "bounds_" + GetParam().name) {}
+
+  void SetUp() override {
+    interferencePlane_.applyOffsetFunctions(GetParam().calculations);
+    interferencePlane_.finalize();
+  }
+
+  std::optional<uint32_t> getVertex(
+      const InterferencePlane::EdgeCoordinate &a,
+      const InterferencePlane::EdgeCoordinate &b) {
+    auto aGroup = expectToFind(interferencePlane_.edges_, a)->second;
+    auto bGroup = expectToFind(interferencePlane_.edges_, b)->second;
+    if (aGroup != bGroup) {
+      std::vector<uint32_t> intersection;
+      std::set<uint32_t> aSet(aGroup->points.begin(), aGroup->points.end());
+      std::set<uint32_t> bSet(bGroup->points.begin(), bGroup->points.end());
+      std::set_intersection(aSet.begin(), aSet.end(), bSet.begin(), bSet.end(),
+                            std::back_inserter(intersection));
+      if (intersection.empty()) {
+        return std::nullopt;
+      } else {
+        return intersection.front();
+      }
+    } else {
+      return std::nullopt;
+    }
+  }
+};
+
+TEST_P(InterferencePlaneEdgeBounds, Bounds) {
+  for (const auto &[coord, expected] : GetParam().bounds) {
+    const auto &[lowerCoord, upperCoord] = expected;
+    const auto range =
+        expectToFind(interferencePlane_.edgeBounds_, coord)->second;
+    ASSERT_EQ(range.getRanges().size(), 1);
+    const auto actual = *range.getRanges().begin();
+    ASSERT_EQ(actual.first, getVertex(coord, lowerCoord))
+        << coord << " x " << lowerCoord;
+    ASSERT_EQ(actual.second, getVertex(coord, upperCoord))
+        << coord << " x " << upperCoord;
+  }
+}
+
+namespace bounds {
+InterferencePlane::EdgeCoordinate edge(
+    const uint32_t id, const uint32_t color,
+    const InterferencePlane::Orientation orientation =
+        InterferencePlane::Orientation::PARALLEL) {
+  return InterferencePlane::EdgeCoordinate(id, color, orientation);
+}
+}  // namespace bounds
+
+INSTANTIATE_TEST_SUITE_P(
+    InterferencePlane, InterferencePlaneEdgeBounds,
+    testing::Values(
+        InterferencePlaneEdgeBoundsCase{
+            .name = "acuteConcavePolygon",
+            .points = samples::acuteConcavePolygon,
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({0, -0.1, -0.2, 0})), true),
+            .bounds =
+                {{bounds::edge(0, BASE_COLOR),
+                  {bounds::edge(3, BASE_COLOR), bounds::edge(1, OFFSET_COLOR)}},
+                 {bounds::edge(0, OFFSET_COLOR),
+                  {bounds::edge(3, BASE_COLOR), bounds::edge(1, OFFSET_COLOR)}},
+                 {bounds::edge(1, BASE_COLOR),
+                  {bounds::edge(0, BASE_COLOR), bounds::edge(2, BASE_COLOR)}}}},
+        InterferencePlaneEdgeBoundsCase{
+            .name = "obtuseConcavePolygon",
+            .points = samples::obtuseConcavePolygon,
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({-0.3, 0, -0.1, -0.2})), true),
+            .bounds =
+                {{bounds::edge(0, BASE_COLOR),
+                  {bounds::edge(3, BASE_COLOR), bounds::edge(1, BASE_COLOR)}},
+                 {bounds::edge(0, OFFSET_COLOR),
+                  {bounds::edge(3, BASE_COLOR), bounds::edge(1, BASE_COLOR)}},
+                 {bounds::edge(3, BASE_COLOR),
+                  {bounds::edge(2, OFFSET_COLOR), bounds::edge(0, BASE_COLOR)}},
+                 {bounds::edge(
+                      0, OFFSET_COLOR,
+                      InterferencePlane::Orientation::OUTGOING_PERPENDICULAR),
+                  {bounds::edge(0, OFFSET_COLOR), bounds::edge(0, BASE_COLOR)}},
+                 {bounds::edge(
+                      3, OFFSET_COLOR,
+                      InterferencePlane::Orientation::INCOMING_PERPENDICULAR),
+                  {bounds::edge(3, BASE_COLOR),
+                   bounds::edge(0, OFFSET_COLOR)}}}}),
     testing::PrintToStringParamName());
 }  // namespace stl3lasercut

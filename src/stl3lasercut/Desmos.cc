@@ -38,7 +38,7 @@ void DesmosOutput::outputInterferencePlane(const InterferencePlane &plane) {
     ss << *group;
     for (auto it = group->points.begin(),
               end = std::next(group->points.end(), -1);
-         it != end; ++it) {
+         it != end && it != group->points.end(); ++it) {
       for (const auto &edge : group->edges) {
         drawLine(*it, *std::next(it), ss.str(), edge.color);
       }
@@ -77,7 +77,7 @@ void DesmosOutput::drawPoint(const std::string &label, const Vec2 point,
 
 void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
                             const std::string &label, const uint32_t color) {
-  const float OFFSET = -0.02;
+  const float OFFSET = -0.01;
   uint32_t count =
       edgeCount_.emplace(std::pair<uint32_t, uint32_t>(source, dest), 0)
           .first->second++;

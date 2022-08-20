@@ -95,7 +95,10 @@ void InterferencePlane::applyOffsetFunctions(
                         setting.perpendicularColor, setting.newColor,
                         setting.calculateInterference);
   }
-  pruneVertices();
+}
+
+void InterferencePlane::finalize() {
+  calculateEdgeBounds();
   fixVertexConnectivity();
 }
 
@@ -225,8 +228,8 @@ void InterferencePlane::addPerpendicularEdgesAtIntersection(
   auto outgoingIt = expectToFind(
       edges_,
       EdgeCoordinate(outgoing, perpendicularColor, Orientation::PARALLEL));
-  if (std::abs(incomingIt->second->line.getAngle(outgoingIt->second->line)) <
-      std::numbers::pi / 2) {
+  float angle = incomingIt->second->line.getAngle(outgoingIt->second->line);
+  if (std::abs(angle) < std::numbers::pi / 2) {
     std::optional<uint32_t> vertex =
         findGroupIntersection(incomingIt->second, outgoingIt->second);
     if (!vertex) {
@@ -237,17 +240,19 @@ void InterferencePlane::addPerpendicularEdgesAtIntersection(
       }
     }
     if (vertex) {
-      addPerpendicularEdgeThroughPoint(*vertex, true, incoming, baseColor,
-                                       newColor, calculateInterference);
-      addPerpendicularEdgeThroughPoint(*vertex, false, outgoing, baseColor,
-                                       newColor, calculateInterference);
+      addPerpendicularEdgeThroughPoint(*vertex, true, angle < 0, incoming,
+                                       baseColor, newColor,
+                                       calculateInterference);
+      addPerpendicularEdgeThroughPoint(*vertex, false, angle < 0, outgoing,
+                                       baseColor, newColor,
+                                       calculateInterference);
     }
   }
 }
 
 void InterferencePlane::addPerpendicularEdgeThroughPoint(
-    const uint32_t vertex, bool isIncoming, const uint32_t id,
-    const uint32_t baseColor, const uint32_t newColor,
+    const uint32_t vertex, const bool isIncoming, const bool isNegativeAngle,
+    const uint32_t id, const uint32_t baseColor, const uint32_t newColor,
     const bool calculateInterference) {
   auto baseIt = expectToFind(
       edges_, EdgeCoordinate(id, baseColor, Orientation::PARALLEL));
@@ -259,8 +264,9 @@ void InterferencePlane::addPerpendicularEdgeThroughPoint(
     // Determine RIGHT or LEFT by relative orderings of parallel lines
     // The convention is derived from:
     //   cross(PARALLEL, PERPENDICULAR) > 0 ? RIGHT : LEFT
-    bool isRightHanded =
-        isIncoming ^ comparator(baseIt->second->line, offsetIt->second->line);
+    bool isRightHanded = isIncoming ^ (comparator(baseIt->second->line,
+                                                  offsetIt->second->line) ||
+                                       isNegativeAngle);
     EdgeCoordinate newCoord(id, newColor,
                             isIncoming ? Orientation::INCOMING_PERPENDICULAR
                                        : Orientation::OUTGOING_PERPENDICULAR);
@@ -318,7 +324,8 @@ void InterferencePlane::computeInterferenceWithColor(
 void InterferencePlane::findAndInsertGroupIntersection(
     const std::shared_ptr<EdgeGroup> &a, const std::shared_ptr<EdgeGroup> &b) {
   // Check for intersection
-  if (areSetsDisjoint(a->points, b->points)) {
+  if (areSetsDisjoint(std::set<uint32_t>(a->points.begin(), a->points.end()),
+                      std::set<uint32_t>(b->points.begin(), b->points.end()))) {
     std::optional<Vec2> intersection = a->line.getIntersection(b->line);
     if (intersection) {
       // Create a new vertex in the assembly
@@ -425,16 +432,30 @@ bool InterferencePlane::pruneVertices() {
     for (; it != end;) {
       auto oldIt = it;
       ++it;
-      if (graph_.getEdgesFromVertex(oldIt).getCount() == 0 ||
-          graph_.getEdgesToVertex(oldIt).getCount() == 0) {
+      uint32_t incomingCount = graph_.getEdgesToVertex(oldIt).getCount();
+      uint32_t outgoingCount = graph_.getEdgesFromVertex(oldIt).getCount();
+      if (incomingCount == 0 || outgoingCount == 0) {
         pruned.emplace(oldIt->getIndex());
         graph_.eraseVertex(oldIt);
         progress = true;
+      } else if (incomingCount == 1 && outgoingCount == 1) {
+        // Get rid of redundant vertex
+        auto incomingEdge = *graph_.getEdgesToVertex(oldIt).begin();
+        auto outgoingEdge = *graph_.getEdgesFromVertex(oldIt).begin();
+        if (incomingEdge.getValue() == outgoingEdge.getValue()) {
+          pruned.emplace(oldIt->getIndex());
+          graph_.emplaceEdge(incomingEdge.getSource(), outgoingEdge.getDest())
+              .first->getValue() = incomingEdge.getValue();
+          graph_.eraseEdge(incomingEdge);
+          graph_.eraseEdge(outgoingEdge);
+          graph_.eraseVertex(oldIt);
+          progress = true;
+        }
       }
     }
   }
   for (const auto &[line, group] : groupMap_) {
-    std::set<uint32_t, Comparator> newSet(Comparator(assembly_, line));
+    std::set<uint32_t, Comparator> newSet(group->points.key_comp());
     std::set<uint32_t> originalSet(group->points.begin(), group->points.end());
     std::set_difference(originalSet.begin(), originalSet.end(), pruned.begin(),
                         pruned.end(), std::inserter(newSet, newSet.begin()));
@@ -445,8 +466,109 @@ bool InterferencePlane::pruneVertices() {
 
 void InterferencePlane::calculateEdgeBounds() {
   while (restrictEdgeBounds()) {
+    pruneVertices();
   }
 }
 
-bool InterferencePlane::restrictEdgeBounds() { return false; }
+bool InterferencePlane::restrictEdgeBounds() {
+  auto makeParallelPredicate = [this](const EdgeCoordinate &coord,
+                                      const bool isIncoming) {
+    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
+    uint32_t nextEdgeId = isIncoming ? adjacency.first : adjacency.second;
+    return [coord, nextEdgeId](const EdgeCoordinate &other) {
+      return (other.id == coord.id &&
+              (other.color != coord.color ||
+               other.orientation != Orientation::PARALLEL)) ||
+             other.id == nextEdgeId;
+    };
+  };
+
+  auto makePerpendicularPredicate = [this](const EdgeCoordinate &coord,
+                                           const bool isIncoming) {
+    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
+    uint32_t nextEdgeId = isIncoming ? adjacency.first : adjacency.second;
+    uint32_t nextColor = expectToFind(colorAdjacency_, coord.color)->second;
+    return [coord, nextEdgeId, nextColor](const EdgeCoordinate &other) {
+      bool res = (other.id == coord.id || other.id == nextEdgeId) &&
+                 (other.color == coord.color || other.color == nextColor) &&
+                 other.orientation == Orientation::PARALLEL;
+      return res;
+    };
+  };
+
+  auto checkVertex = [this](
+                         const std::function<bool(EdgeCoordinate)> &predicate) {
+    return [this, predicate](const uint32_t vertex) {
+      auto incoming = graph_.getEdgesToVertex(vertex);
+      auto outgoing = graph_.getEdgesFromVertex(vertex);
+      return std::any_of(incoming.begin(), incoming.end(),
+                         [predicate](const Graph::ConstEdge &edge) {
+                           return std::any_of(edge.getValue()->edges.begin(),
+                                              edge.getValue()->edges.end(),
+                                              predicate);
+                         }) ||
+             std::any_of(outgoing.begin(), outgoing.end(),
+                         [predicate](const Graph::ConstEdge &edge) {
+                           return std::any_of(edge.getValue()->edges.begin(),
+                                              edge.getValue()->edges.end(),
+                                              predicate);
+                         });
+    };
+  };
+
+  bool anyModified = false;
+  for (const auto &[line, group] : groupMap_) {
+    Range groupRange(Comparator(assembly_, line));
+    groupRange.insert(*group->points.begin(), *group->points.rbegin());
+    for (const EdgeCoordinate &coord : group->edges) {
+      auto lowerIt = group->points.begin();
+      auto upperIt = group->points.rbegin();
+      if (coord.orientation == Orientation::PARALLEL) {
+        lowerIt = std::find_if(group->points.begin(), group->points.end(),
+                               checkVertex(makeParallelPredicate(coord, true)));
+        upperIt =
+            std::find_if(group->points.rbegin(), group->points.rend(),
+                         checkVertex(makeParallelPredicate(coord, false)));
+      } else {
+        auto predicate = checkVertex(makePerpendicularPredicate(
+            coord, coord.orientation != Orientation::INCOMING_PERPENDICULAR));
+        lowerIt =
+            std::find_if(group->points.begin(), group->points.end(), predicate);
+        upperIt = std::find_if(group->points.rbegin(), group->points.rend(),
+                               predicate);
+      }
+      Range range(Comparator(assembly_, line));
+      range.insert(*lowerIt, *upperIt);
+      auto [it, success] = edgeBounds_.emplace(coord, range);
+      if (success) {
+        anyModified = true;
+      } else {
+        Range intersection = range & it->second;
+        if (intersection != it->second) {
+          it->second = intersection;
+          anyModified = true;
+        }
+      }
+      groupRange = groupRange & it->second;
+    }
+    std::vector<std::set<uint32_t, Comparator>::iterator> toErase;
+    for (auto it = group->points.begin(); it != group->points.end(); ++it) {
+      if (!groupRange.contains(*it)) {
+        toErase.push_back(it);
+        if (it != group->points.begin()) {
+          graph_.eraseEdge(
+              std::pair<uint32_t, uint32_t>(*std::next(it, -1), *it));
+        }
+        auto nextIt = std::next(it);
+        if (nextIt != group->points.end()) {
+          graph_.eraseEdge(std::pair<uint32_t, uint32_t>(*it, *nextIt));
+        }
+      }
+    }
+    for (auto it : toErase) {
+      group->points.erase(it);
+    }
+  }
+  return anyModified;
+}
 }  // namespace stl3lasercut
