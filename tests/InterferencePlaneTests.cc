@@ -240,39 +240,44 @@ INSTANTIATE_TEST_SUITE_P(
             .name = "obtuseTriangle_positiveOffset",
             .points = samples::obtuseTriangle,
             .calculations = offset::single(offset::constant(0.2), true),
-            .characteristic = Characteristic{.vertices = 18, .edges = 30}},
+            .characteristic = Characteristic{.vertices = 20, .edges = 34}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_negativeOffset",
             .points = samples::obtuseTriangle,
             .calculations = offset::single(offset::constant(-0.2), true),
-            .characteristic = Characteristic{.vertices = 16, .edges = 26}},
+            .characteristic = Characteristic{.vertices = 18, .edges = 30}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_middleInterference",
             .points = samples::obtuseTriangle,
             .calculations = {offset::first(offset::constant(-1), false),
                              offset::second(offset::constant(0.5), true)},
-            .characteristic = Characteristic{.vertices = 25, .edges = 41}},
+            .characteristic = Characteristic{.vertices = 36, .edges = 63}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_positiveOffset",
             .points = samples::obtuseConcavePolygon,
             .calculations = offset::single(offset::constant(0.2), true),
-            .characteristic = Characteristic{.vertices = 30, .edges = 52}},
+            .characteristic = Characteristic{.vertices = 34, .edges = 60}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_negativeOffset",
             .points = samples::obtuseConcavePolygon,
             .calculations = offset::single(offset::constant(-0.2), true),
-            .characteristic = Characteristic{.vertices = 30, .edges = 52}},
+            .characteristic = Characteristic{.vertices = 34, .edges = 60}},
         InterferencePlaneOffsetCase{
             .name = "disjointTriangles_negativeOffset",
             .points = samples::disjointTriangles,
             .calculations = offset::single(offset::constant(-1), false),
             .characteristic = Characteristic{.vertices = 18, .edges = 24}},
         InterferencePlaneOffsetCase{
+            .name = "straightAnglePolygon_negativeOffset",
+            .points = samples::straightAnglePolygon,
+            .calculations = offset::single(offset::constant(-1), true),
+            .characteristic = Characteristic{.vertices = 14, .edges = 26}},
+        InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_variableNegativeOffset",
             .points = samples::obtuseTriangle,
             .calculations = offset::single(
                 offset::ring(RingVector<float>({-1, -0.5, -0.2})), true),
-            .characteristic = Characteristic{.vertices = 17, .edges = 28}},
+            .characteristic = Characteristic{.vertices = 19, .edges = 32}},
         InterferencePlaneOffsetCase{
             .name = "obtuseTriangle_partialZeroOffset",
             .points = samples::obtuseTriangle,
@@ -393,6 +398,18 @@ INSTANTIATE_TEST_SUITE_P(
                       3, OFFSET_COLOR,
                       InterferencePlane::Orientation::INCOMING_PERPENDICULAR),
                   {bounds::edge(3, BASE_COLOR),
-                   bounds::edge(0, OFFSET_COLOR)}}}}),
+                   bounds::edge(0, OFFSET_COLOR)}}}},
+        InterferencePlaneEdgeBoundsCase{
+            .name = "straightAnglePolygon_noInterference",
+            .points = samples::straightAnglePolygon,
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({-0.3, -0.2, 0, 0})), false),
+            // .calculations = {offset::single(offset::constant(-0.2), true)},
+            .bounds =
+                {{bounds::edge(
+                      0, OFFSET_COLOR,
+                      InterferencePlane::Orientation::INCOMING_PERPENDICULAR),
+                  {bounds::edge(0, OFFSET_COLOR),
+                   bounds::edge(1, OFFSET_COLOR)}}}}),
     testing::PrintToStringParamName());
 }  // namespace stl3lasercut

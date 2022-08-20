@@ -107,7 +107,8 @@ void InterferencePlane::applyOffsetFunction(const OffsetFunction &func,
                                             const uint32_t perpendicularColor,
                                             const uint32_t newColor,
                                             const bool calculateInterference) {
-  colorAdjacency_.emplace(newColor, baseColor);
+  colorAdjacency_.emplace(
+      newColor, std::pair<uint32_t, bool>(baseColor, calculateInterference));
   for (const auto &[coord, group] : edges_) {
     if (coord.color == baseColor &&
         coord.orientation == Orientation::PARALLEL) {
@@ -308,10 +309,7 @@ void InterferencePlane::computeInterferenceWithColor(
     const EdgeCoordinate &coord, const uint32_t color) {
   std::set<std::shared_ptr<EdgeGroup>> groups;
   for (const auto &[other, group] : edges_) {
-    if (other.color == color &&
-        (coord.orientation == Orientation::PARALLEL &&
-             other.orientation == Orientation::PARALLEL ||
-         other.color == coord.color)) {
+    if (other.color == color) {
       groups.insert(group);
     }
   }
@@ -485,15 +483,19 @@ bool InterferencePlane::restrictEdgeBounds() {
 
   auto makePerpendicularPredicate = [this](const EdgeCoordinate &coord,
                                            const bool isIncoming) {
-    auto adjacency = expectToFind(edgeAdjacency_, coord.id)->second;
-    uint32_t nextEdgeId = isIncoming ? adjacency.first : adjacency.second;
-    uint32_t nextColor = expectToFind(colorAdjacency_, coord.color)->second;
-    return [coord, nextEdgeId, nextColor](const EdgeCoordinate &other) {
-      bool res = (other.id == coord.id || other.id == nextEdgeId) &&
-                 (other.color == coord.color || other.color == nextColor) &&
+    auto edgeAdjacency = expectToFind(edgeAdjacency_, coord.id)->second;
+    uint32_t nextEdgeId =
+        isIncoming ? edgeAdjacency.first : edgeAdjacency.second;
+    auto colorAdjacency = expectToFind(colorAdjacency_, coord.color)->second;
+    uint32_t nextColor = colorAdjacency.first;
+    bool isDerived = colorAdjacency.second;
+    return
+        [coord, nextEdgeId, nextColor, isDerived](const EdgeCoordinate &other) {
+          return (other.id == coord.id || other.id == nextEdgeId) &&
+                 (other.color == coord.color ||
+                  other.color == nextColor && isDerived) &&
                  other.orientation == Orientation::PARALLEL;
-      return res;
-    };
+        };
   };
 
   auto checkVertex = [this](

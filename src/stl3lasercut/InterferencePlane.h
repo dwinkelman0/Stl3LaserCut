@@ -170,8 +170,8 @@ class InterferencePlane {
   std::map<uint32_t, std::pair<uint32_t, uint32_t>>
       edgeAdjacency_; /** Maps an edge ID to the (lower, upper) adjacent
                                  edge IDs. */
-  std::map<uint32_t, uint32_t> colorAdjacency_; /** Maps a color to the color
-                                                   from which it is derived. */
+  std::map<uint32_t, std::pair<uint32_t, bool>>
+      colorAdjacency_; /** Maps a color to the color from which it is derived */
   std::map<std::pair<EdgeCoordinate, EdgeCoordinate>, uint32_t,
            KnownIntersectionsComparator>
       knownIntersections_; /** Keep track of known intersections to help when
