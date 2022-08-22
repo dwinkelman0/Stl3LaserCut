@@ -57,6 +57,7 @@ class MultiVertexConnectivityGraph {
   using ForwardReachablePointSet = std::set<uint32_t, AngularComparator<true>>;
   using BackwardReachablePointSet =
       std::set<uint32_t, AngularComparator<false>>;
+  using ExportSet = std::vector<std::vector<std::pair<uint32_t, bool>>>;
 
  public:
   MultiVertexConnectivityGraph(
@@ -72,6 +73,7 @@ class MultiVertexConnectivityGraph {
       const uint32_t v0) const;
   ForwardReachablePointSet getForwardReachablePoints(const uint32_t v0) const;
   BackwardReachablePointSet getBackwardReachablePoints(const uint32_t v0) const;
+  ExportSet exportPoints() const;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const MultiVertexConnectivityGraph &graph);

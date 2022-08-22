@@ -42,6 +42,7 @@ class EdgeCoordinate {
 
 /** An InterferencePlane performs offsets and dynamic intersection creation. */
 class InterferencePlane {
+  friend class TopologyPlane;
   friend class DesmosOutput;
   friend class InterferencePlaneEdgeBounds;
   FRIEND_TEST(InterferencePlaneSetup, Setup);

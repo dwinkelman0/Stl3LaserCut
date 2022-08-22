@@ -238,6 +238,15 @@ MultiVertexConnectivityGraph::getBackwardReachablePoints(
   return getReachablePoints<false>(v0);
 }
 
+MultiVertexConnectivityGraph::ExportSet
+MultiVertexConnectivityGraph::exportPoints() const {
+  ExportSet output;
+  for (const auto &[index, vertices] : components_) {
+    output.emplace_back(vertices.begin(), vertices.end());
+  }
+  return output;
+}
+
 std::ostream &operator<<(std::ostream &os,
                          const MultiVertexConnectivityGraph &graph) {
   os << "(central = " << graph.centralVertex_
