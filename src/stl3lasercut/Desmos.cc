@@ -90,7 +90,7 @@ void DesmosOutput::drawLine(const uint32_t source, const uint32_t dest,
   a = *line.getIntersection(line.getPerpendicularLineThroughPoint(a, true));
   b = *line.getIntersection(line.getPerpendicularLineThroughPoint(b, true));
   ss << line;
-  if (std::get<0>(line.getDirectionVector()) == 1) {
+  if (std::abs(std::get<1>(line.getDirectionVector())) < 1e-4) {
     ss << " \\\\{" << std::min(std::get<1>(a), std::get<1>(b)) << " < y < "
        << std::max(std::get<1>(a), std::get<1>(b)) << "\\\\}";
   } else {
