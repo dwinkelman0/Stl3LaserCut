@@ -143,6 +143,13 @@ void InterferencePlane::addParallelEdgesFromLoop(const LoopPlane::Loop &loop,
         addAngle(v0, v1, v2, *e0, *e1, color);
       },
       3);
+  ring.foreachPair([this, &loop, color](const uint32_t v0, const uint32_t v1) {
+    std::optional<uint32_t> edgeId = loop.getEdgeId(v0, v1);
+    assert(edgeId);
+    computeInterferenceWithColor(
+        EdgeCoordinate(*edgeId, color, EdgeCoordinate::Orientation::PARALLEL),
+        color);
+  });
 }
 
 bool InterferencePlane::addPoint(const uint32_t index) {

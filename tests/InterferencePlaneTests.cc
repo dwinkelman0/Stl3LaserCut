@@ -207,17 +207,17 @@ INSTANTIATE_TEST_SUITE_P(
             .name = "obtuseConcavePolygon_positiveOffset",
             .points = samples::obtuseConcavePolygon,
             .calculations = offset::single(offset::constant(0.2), true),
-            .characteristic = Characteristic{.vertices = 34, .edges = 60}},
+            .characteristic = Characteristic{.vertices = 36, .edges = 64}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_negativeOffset",
             .points = samples::obtuseConcavePolygon,
             .calculations = offset::single(offset::constant(-0.2), true),
-            .characteristic = Characteristic{.vertices = 34, .edges = 60}},
+            .characteristic = Characteristic{.vertices = 36, .edges = 64}},
         InterferencePlaneOffsetCase{
             .name = "disjointTriangles_negativeOffset",
             .points = samples::disjointTriangles,
             .calculations = offset::single(offset::constant(-1), false),
-            .characteristic = Characteristic{.vertices = 18, .edges = 24}},
+            .characteristic = Characteristic{.vertices = 18, .edges = 26}},
         InterferencePlaneOffsetCase{
             .name = "straightAnglePolygon_negativeOffset",
             .points = samples::straightAnglePolygon,
