@@ -35,6 +35,7 @@ class EdgeCoordinate {
       : id(id), color(color), orientation(orientation) {}
 
   bool operator<(const EdgeCoordinate &other) const;
+  bool operator==(const EdgeCoordinate &other) const;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const EdgeCoordinate &coord);

@@ -13,6 +13,11 @@ bool EdgeCoordinate::operator<(const EdgeCoordinate &other) const {
          std::tie(other.id, other.color, other.orientation);
 }
 
+bool EdgeCoordinate::operator==(const EdgeCoordinate &other) const {
+  return std::tie(id, color, orientation) ==
+         std::tie(other.id, other.color, other.orientation);
+}
+
 std::ostream &operator<<(std::ostream &os, const EdgeCoordinate &coord) {
   os << coord.id << "."
      << (coord.orientation == EdgeCoordinate::Orientation::PARALLEL ? "par"
@@ -508,22 +513,38 @@ bool InterferencePlane::restrictEdgeBounds() {
   };
 
   auto checkVertex = [this](
-                         const std::function<bool(EdgeCoordinate)> &predicate) {
-    return [this, predicate](const uint32_t vertex) {
+                         const std::function<bool(EdgeCoordinate)> &predicate,
+                         const EdgeCoordinate &coord) {
+    return [this, predicate, coord](const uint32_t vertex) {
       auto incoming = graph_.getEdgesToVertex(vertex);
       auto outgoing = graph_.getEdgesFromVertex(vertex);
-      return std::any_of(incoming.begin(), incoming.end(),
-                         [predicate](const Graph::ConstEdge &edge) {
-                           return std::any_of(edge.getValue()->edges.begin(),
-                                              edge.getValue()->edges.end(),
-                                              predicate);
-                         }) ||
-             std::any_of(outgoing.begin(), outgoing.end(),
-                         [predicate](const Graph::ConstEdge &edge) {
-                           return std::any_of(edge.getValue()->edges.begin(),
-                                              edge.getValue()->edges.end(),
-                                              predicate);
-                         });
+      auto isCoordThis = [this, coord](const Graph::ConstEdge &edge) {
+        return std::any_of(edge.getValue()->edges.begin(),
+                           edge.getValue()->edges.end(),
+                           [coord](const EdgeCoordinate &other) {
+                             return other == coord;
+                           }) &&
+               std::none_of(edge.getValue()->edges.begin(),
+                            edge.getValue()->edges.end(),
+                            [this, coord](const EdgeCoordinate &other) {
+                              return knownIntersections_.find({coord, other}) !=
+                                     knownIntersections_.end();
+                            });
+      };
+      return std::any_of(
+                 incoming.begin(), incoming.end(),
+                 [predicate, isCoordThis](const Graph::ConstEdge &edge) {
+                   return !isCoordThis(edge) &&
+                          std::any_of(edge.getValue()->edges.begin(),
+                                      edge.getValue()->edges.end(), predicate);
+                 }) ||
+             std::any_of(
+                 outgoing.begin(), outgoing.end(),
+                 [predicate, isCoordThis](const Graph::ConstEdge &edge) {
+                   return !isCoordThis(edge) &&
+                          std::any_of(edge.getValue()->edges.begin(),
+                                      edge.getValue()->edges.end(), predicate);
+                 });
     };
   };
 
@@ -535,15 +556,18 @@ bool InterferencePlane::restrictEdgeBounds() {
       auto lowerIt = group->points.begin();
       auto upperIt = group->points.rbegin();
       if (coord.orientation == EdgeCoordinate::Orientation::PARALLEL) {
-        lowerIt = std::find_if(group->points.begin(), group->points.end(),
-                               checkVertex(makeParallelPredicate(coord, true)));
-        upperIt =
-            std::find_if(group->points.rbegin(), group->points.rend(),
-                         checkVertex(makeParallelPredicate(coord, false)));
+        lowerIt = std::find_if(
+            group->points.begin(), group->points.end(),
+            checkVertex(makeParallelPredicate(coord, true), coord));
+        upperIt = std::find_if(
+            group->points.rbegin(), group->points.rend(),
+            checkVertex(makeParallelPredicate(coord, false), coord));
       } else {
-        auto predicate = checkVertex(makePerpendicularPredicate(
-            coord, coord.orientation !=
-                       EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR));
+        auto predicate = checkVertex(
+            makePerpendicularPredicate(
+                coord, coord.orientation !=
+                           EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR),
+            coord);
         lowerIt =
             std::find_if(group->points.begin(), group->points.end(), predicate);
         upperIt = std::find_if(group->points.rbegin(), group->points.rend(),

@@ -355,6 +355,9 @@ INSTANTIATE_TEST_SUITE_P(
                       0, OFFSET_COLOR,
                       EdgeCoordinate::Orientation::INCOMING_PERPENDICULAR),
                   {bounds::edge(0, OFFSET_COLOR),
-                   bounds::edge(1, OFFSET_COLOR)}}}}),
+                   bounds::edge(1, OFFSET_COLOR)}},
+                 {bounds::edge(0, BASE_COLOR),
+                  {bounds::edge(3, BASE_COLOR),
+                   bounds::edge(2, BASE_COLOR)}}}}),
     testing::PrintToStringParamName());
 }  // namespace stl3lasercut
