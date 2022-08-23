@@ -202,7 +202,7 @@ INSTANTIATE_TEST_SUITE_P(
             .points = samples::obtuseTriangle,
             .calculations = {offset::first(offset::constant(-1), false),
                              offset::second(offset::constant(0.5), true)},
-            .characteristic = Characteristic{.vertices = 36, .edges = 63}},
+            .characteristic = Characteristic{.vertices = 35, .edges = 61}},
         InterferencePlaneOffsetCase{
             .name = "obtuseConcavePolygon_positiveOffset",
             .points = samples::obtuseConcavePolygon,

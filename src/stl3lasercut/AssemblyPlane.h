@@ -25,6 +25,11 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   friend class VertexConnectivityGraphTest;
 
  private:
+  class PointComparator {
+   public:
+    bool operator()(const Vec2 &a, const Vec2 &b) const;
+  };
+
   using Graph =
       algo::DirectedGraph<algo::Unit, uint32_t, ChainedVertexConnectivityGraph>;
 
@@ -47,7 +52,8 @@ class AssemblyPlane : public std::enable_shared_from_this<AssemblyPlane> {
   Projector3D projector_;
   Graph graph_;
   uint32_t edgeIdCounter_;
-  algo::Lookup<Vec2> pointLookup_; /** Map internal indices to points. */
+  algo::Lookup<Vec2, PointComparator>
+      pointLookup_; /** Map internal indices to points. */
   std::map<uint32_t, uint32_t> externalToInternalIndexMap_;
   std::map<uint32_t, uint32_t> internalToExternalIndexMap_;
 };

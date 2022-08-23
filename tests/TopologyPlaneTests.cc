@@ -98,6 +98,10 @@ INSTANTIATE_TEST_SUITE_P(
             SAMPLE(disjointTriangles),
             .calculations = offset::single(offset::constant(-0.5), true)},
         TopologyPlaneTestCase{
+            .name = "disjointTriangles_overlap",
+            .points = samples::disjointTriangles,
+            .calculations = offset::single(offset::constant(-1), true)},
+        TopologyPlaneTestCase{
             SAMPLE(bubbleNegativeTriangle),
             .calculations = offset::single(
                 offset::ring(RingVector<float>({0, 0.4, 0, 0, 2, 0.6})),
