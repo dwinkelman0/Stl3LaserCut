@@ -73,6 +73,7 @@ class MultiVertexConnectivityGraph {
       const uint32_t v0) const;
   ForwardReachablePointSet getForwardReachablePoints(const uint32_t v0) const;
   BackwardReachablePointSet getBackwardReachablePoints(const uint32_t v0) const;
+  bool isFullCircle() const;
   ExportSet exportPoints() const;
 
   friend std::ostream &operator<<(std::ostream &os,

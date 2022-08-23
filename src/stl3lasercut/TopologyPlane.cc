@@ -3,229 +3,158 @@
 #include "TopologyPlane.h"
 
 namespace stl3lasercut {
+std::shared_ptr<TopologyPlane::Graph::Component>
+TopologyPlane::Graph::Component::create(
+    const Graph_ &graph, const std::shared_ptr<uint32_t> &vertexCounter) {
+  return std::shared_ptr<Component>(new Component(graph, vertexCounter));
+}
 
-TopologyPlane::TopologyPlane(const InterferencePlane &interferencePlane)
-    : assemblyPlane_(interferencePlane.assembly_), vertexCounter_(0) {
-  for (const auto &vertex : interferencePlane.graph_.getVertices()) {
-    graph_.emplaceVertex(vertex.getIndex()).first->getValue() =
-        vertex.getValue().exportPoints();
-    vertexCounter_ = std::max(vertexCounter_, vertex.getIndex());
-  }
-  for (const auto &edge : interferencePlane.graph_.getEdges()) {
-    graph_.emplaceEdge(edge.getSource(), edge.getDest()).first->getValue() =
-        edge.getValue()->edges;
-  }
-  for (const auto &[vertex, adjacency] : interferencePlane.edgeAdjacency_) {
-    edgeAdjacency_.emplace(vertex, adjacency.second);
+void TopologyPlane::Graph::Component::merge() {
+  bool progress = true;
+  while (progress) {
+    progress = false;
+    for (auto it = graph_.getEdges().begin(); it != graph_.getEdges().end();
+         ++it) {
+      if (canMerge(it->getSource(), it->getDest())) {
+        Merge_ res = merge(it->getSource(), it->getDest());
+        std::cout << "merge " << it->getSource() << " and " << it->getDest()
+                  << " into " << res.newVertex << std::endl;
+        progress = true;
+        break;
+      }
+    }
   }
 }
 
-void TopologyPlane::debug() const {
+void TopologyPlane::Graph::Component::debug() const {
   for (const auto &vertex : graph_.getVertices()) {
     std::cout << vertex.getIndex() << ": ";
-    for (const auto &component : vertex.getValue()) {
-      std::cout << "[";
-      for (const auto &[index, isIncoming] : component) {
-        std::cout << index << "." << (isIncoming ? "in" : "out") << ", ";
-      }
-      std::cout << "], ";
+    if (vertex.getValue().getIsFullCircle()) {
+      std::cout << "(full circle) ";
+    }
+    for (const auto &[other, isIncoming] : vertex.getValue().getOrder()) {
+      std::cout << other << (isIncoming ? ".in" : ".out") << ", ";
     }
     std::cout << std::endl;
   }
   for (const auto &edge : graph_.getEdges()) {
-    std::cout << edge.getSource() << " -> " << edge.getDest() << ": ";
-    std::copy(edge.getValue().begin(), edge.getValue().end(),
-              std::ostream_iterator<EdgeCoordinate>(std::cout, ", "));
-    std::cout << std::endl;
+    if (canMerge(edge.getSource(), edge.getDest())) {
+      std::cout << edge.getSource() << " -> " << edge.getDest() << std::endl;
+    }
   }
 }
 
-template <bool IsIncoming>
-std::set<EdgeCoordinate> getEdges() {}
-
-bool componentContainsVertex(
-    const std::vector<std::pair<uint32_t, bool>> &component,
-    const uint32_t vertex, const bool isIncoming) {
-  return std::find_if(
-             component.begin(), component.end(),
-             [vertex, isIncoming](const std::pair<uint32_t, bool> &edge) {
-               return edge.first == vertex && edge.second == isIncoming;
-             }) != component.end();
+TopologyPlane::Graph::Component::Component(
+    const Graph_ &graph, const std::shared_ptr<uint32_t> &vertexCounter)
+    : graph_(graph), vertexCounter_(vertexCounter) {
+  debug();
+  merge();
 }
 
-std::map<uint32_t, TopologyPlane::Simplification>
-TopologyPlane::simplifyCycle() {
-  std::map<uint32_t, TopologyPlane::Simplification> output;
-  bool progress = true;
-  while (progress) {
-    progress = false;
-    auto edges = graph_.getEdges();
-    for (auto it = edges.begin(); it != edges.end(); ++it) {
-      auto source = it->getSource();
-      auto dest = it->getDest();
-      if (!doVerticesOverlap(source, dest)) {
-        auto sourceIn = getEdges<true>(source, dest, true);
-        auto sourceOut = getEdges<true>(source, dest, false);
-        auto destIn = getEdges<false>(dest, source, true);
-        auto destOut = getEdges<false>(dest, source, false);
-        if (std::includes(sourceIn.begin(), sourceIn.end(), destIn.begin(),
-                          destIn.end()) &&
-            std::includes(destOut.begin(), destOut.end(), sourceOut.begin(),
-                          sourceOut.end())) {
-          Simplification simplification = mergeVertices(source, dest);
-          output.emplace(simplification.newVertex, simplification);
-          progress = true;
-          break;
-        }
+bool TopologyPlane::Graph::Component::canMerge(const uint32_t v0,
+                                               const uint32_t v1) const {
+  if (graph_.getEdge(v1, v0)) {
+    return false;
+  }
+
+  auto vc0 = Graph_::unwrap(graph_.getVertex(v0)).getValue();
+  auto vc1 = Graph_::unwrap(graph_.getVertex(v1)).getValue();
+  auto it0 = vc0.find(v1, false);
+  auto it1 = vc1.find(v0, true);
+  {
+    auto prev0 = vc0.getPrevious(it0);
+    auto next1 = vc1.getNext(it1);
+    if (prev0 != vc0.getOrder().end() && next1 != vc1.getOrder().end() &&
+        prev0->second == next1->second) {
+      auto edges0 = getEdges(v0, *prev0);
+      auto edges1 = getEdges(v1, *next1);
+      if (edges0 == edges1) {
+        return true;
       }
     }
   }
-  return output;
-}
-
-template <bool IsIncoming>
-std::set<uint32_t> TopologyPlane::getEdges(const uint32_t v0, const uint32_t v1,
-                                           const bool findIncoming) const {
-  Graph::ConstVertex vertex = Graph::unwrap(graph_.getVertex(v0));
-  auto componentIt = std::find_if(
-      vertex.getValue().begin(), vertex.getValue().end(),
-      [v1](const std::vector<std::pair<uint32_t, bool>> &component) {
-        return std::find(component.begin(), component.end(),
-                         std::pair<uint32_t, bool>(v1, !IsIncoming)) !=
-               component.end();
-      });
-  std::set<uint32_t> output;
-  if (componentIt != vertex.getValue().end()) {
-    for (const auto &[vertex, isIncoming] : *componentIt) {
-      if (isIncoming == findIncoming) {
-        if (!(findIncoming != IsIncoming && vertex == v1)) {
-          auto edgeSet =
-              Graph::unwrap(graph_.getEdge(findIncoming ? vertex : v0,
-                                           findIncoming ? v0 : vertex))
-                  .getValue();
-          for (const EdgeCoordinate &edge : edgeSet) {
-            output.insert(edge.id);
-          }
-        }
+  {
+    auto next0 = vc0.getNext(it0);
+    auto prev1 = vc1.getPrevious(it1);
+    if (next0 != vc0.getOrder().end() && prev1 != vc1.getOrder().end() &&
+        next0->second == prev1->second) {
+      auto edges0 = getEdges(v0, *next0);
+      auto edges1 = getEdges(v1, *prev1);
+      if (edges0 == edges1) {
+        return true;
       }
     }
   }
-  return output;
+  return false;
 }
 
-bool TopologyPlane::doVerticesOverlap(const uint32_t v0,
-                                      const uint32_t v1) const {
-  std::set<uint32_t> incomingEdges, outgoingEdges;
-  for (const Graph::ConstEdge &edge : graph_.getEdgesToVertex(v0)) {
-    const std::set<EdgeCoordinate> &coords = edge.getValue();
-    std::transform(coords.begin(), coords.end(),
-                   std::inserter(incomingEdges, incomingEdges.begin()),
-                   [](const EdgeCoordinate &coord) { return coord.id; });
-  }
-  for (const Graph::ConstEdge &edge : graph_.getEdgesFromVertex(v1)) {
-    const std::set<EdgeCoordinate> &coords = edge.getValue();
-    std::transform(coords.begin(), coords.end(),
-                   std::inserter(outgoingEdges, outgoingEdges.begin()),
-                   [this](const EdgeCoordinate &coord) {
-                     return expectToFind(edgeAdjacency_, coord.id)->second;
-                   });
-  }
-  return !areSetsDisjoint(incomingEdges, outgoingEdges);
-}
-
-template <typename T>
-void makeCircularlyUnique(std::vector<T> &vec) {
-  auto last = std::unique(vec.begin(), vec.end());
-  vec.erase(last, vec.end());
-  if (vec.back() == vec.front()) {
-    vec.pop_back();
-  }
-}
-
-TopologyPlane::Simplification TopologyPlane::mergeVertices(const uint32_t v0,
-                                                           const uint32_t v1) {
-  using Component = std::vector<std::pair<uint32_t, bool>>;
-  using ComponentIt = Component::iterator;
-
-  const auto findComponentAndVertex =
-      [this](const uint32_t v0, const uint32_t v1, const bool isIncoming) {
-        auto &set = Graph::unwrap(graph_.getVertex(v0)).getValue();
-        for (auto componentIt = set.begin(); componentIt != set.end();
-             ++componentIt) {
-          auto output = std::find(componentIt->begin(), componentIt->end(),
-                                  std::pair<uint32_t, bool>(v1, isIncoming));
-          if (output != componentIt->end()) {
-            return std::pair(componentIt, output);
-          }
-        }
-        debug();
-        throw std::runtime_error("This should not be reached.");
-      };
-
-  const auto relinkVertices = [this, findComponentAndVertex](
-                                  const uint32_t oldVertex,
-                                  const uint32_t ignoreVertex,
-                                  const uint32_t newVertex,
-                                  const Component &component) {
-    for (const auto &[otherVertex, isIncoming] : component) {
-      if (otherVertex != ignoreVertex) {
-        auto [otherComponent, otherIt] =
-            findComponentAndVertex(otherVertex, oldVertex, !isIncoming);
-        otherIt->first = newVertex;
-        makeCircularlyUnique(*otherComponent);
-        auto [newEdge, success] =
-            isIncoming ? graph_.emplaceEdge(otherVertex, newVertex)
-                       : graph_.emplaceEdge(newVertex, otherVertex);
-        auto oldEdge =
-            Graph::unwrap(isIncoming ? graph_.getEdge(otherVertex, oldVertex)
-                                     : graph_.getEdge(oldVertex, otherVertex));
-        if (success) {
-          std::swap(newEdge->getValue(), oldEdge.getValue());
-        } else {
-          newEdge->getValue().insert(oldEdge.getValue().begin(),
-                                     oldEdge.getValue().end());
-        }
+TopologyPlane::Graph::Component::Merge_ TopologyPlane::Graph::Component::merge(
+    const uint32_t v0, const uint32_t v1) {
+  auto relinkVertices = [this](const uint32_t oldVertex,
+                               const uint32_t newVertex,
+                               const uint32_t excludeVertex,
+                               const VertexConnectivity &connectivity) {
+    for (const auto &[otherVertex, isIncoming] : connectivity.getOrder()) {
+      if (otherVertex != excludeVertex) {
+        Graph_::unwrap(graph_.getVertex(otherVertex))
+            .getValue()
+            .rename(oldVertex, newVertex);
+        Graph_::Edge oldEdge =
+            Graph_::unwrap(isIncoming ? graph_.getEdge(otherVertex, oldVertex)
+                                      : graph_.getEdge(oldVertex, otherVertex));
+        Graph_::Edge &newEdge =
+            *(isIncoming ? graph_.emplaceEdge(otherVertex, newVertex)
+                         : graph_.emplaceEdge(newVertex, otherVertex))
+                 .first;
+        newEdge.getValue().insert(oldEdge.getValue().begin(),
+                                  oldEdge.getValue().end());
         graph_.eraseEdge(oldEdge);
       }
     }
   };
 
-  // Create new vertex and gather output
-  auto [newVertex, newVertexSuccess] = graph_.emplaceVertex(++vertexCounter_);
-  TopologyPlane::Simplification output = {
-      .source = v0,
-      .dest = v1,
-      .newVertex = newVertex->getIndex(),
-      .edge = Graph::unwrap(graph_.getEdge(v0, v1)).getValue()};
+  auto vc0 = Graph_::unwrap(graph_.getVertex(v0)).getValue();
+  auto vc1 = Graph_::unwrap(graph_.getVertex(v1)).getValue();
+  auto it0 = vc0.find(v1, false);
+  auto it1 = vc1.find(v0, true);
 
-  // For each adjacent vertex, apply the merger
-  auto [component0, it0] = findComponentAndVertex(v0, v1, false);
-  auto [component1, it1] = findComponentAndVertex(v1, v0, true);
-  relinkVertices(v0, v1, newVertex->getIndex(), *component0);
-  relinkVertices(v1, v0, newVertex->getIndex(), *component1);
-
-  // // Merge vertex data and create new vertex
-  std::vector<std::pair<uint32_t, bool>> newComponent;
-  newComponent.insert(newComponent.end(), component0->begin(), it0);
-  newComponent.insert(newComponent.end(), std::next(it1), component1->end());
-  newComponent.insert(newComponent.end(), component1->begin(), it1);
-  newComponent.insert(newComponent.end(), std::next(it0), component0->end());
-  makeCircularlyUnique(newComponent);
-  assert(newVertexSuccess);
-  newVertex->getValue().push_back(newComponent);
-
-  // Erase old vertices
+  std::vector<std::pair<uint32_t, bool>> newOrder;
+  newOrder.insert(newOrder.end(), vc0.getOrder().begin(), it0);
+  newOrder.insert(newOrder.end(), std::next(it1), vc1.getOrder().end());
+  newOrder.insert(newOrder.end(), vc1.getOrder().begin(), it1);
+  newOrder.insert(newOrder.end(), std::next(it0), vc0.getOrder().end());
+  auto last = std::unique(newOrder.begin(), newOrder.end());
+  newOrder.erase(last, newOrder.end());
+  if (newOrder.back() == newOrder.front()) {
+    newOrder.pop_back();
+  }
+  Graph_::Vertex &newVertex =
+      *graph_
+           .emplaceVertex(
+               ++(*vertexCounter_),
+               VertexConnectivity(
+                   newOrder, vc0.getIsFullCircle() || vc1.getIsFullCircle()))
+           .first;
+  relinkVertices(v0, newVertex.getIndex(), v1, vc0);
+  relinkVertices(v1, newVertex.getIndex(), v0, vc1);
+  Merge_ output = {.source = v0,
+                   .dest = v1,
+                   .newVertex = newVertex.getIndex(),
+                   .edges = Graph_::unwrap(graph_.getEdge(v0, v1)).getValue()};
   graph_.eraseVertex(v0);
   graph_.eraseVertex(v1);
-
   return output;
 }
 
-TopologyNode::TopologyNode(const TopologyPlane &topologyPlane) {
-  // simplify
-
-  // if a loop can be made, then make the loop
-
-  // otherwise, choose a simplification and recurse
+std::set<uint32_t> TopologyPlane::Graph::Component::getEdges(
+    const uint32_t v0, const std::pair<uint32_t, bool> &otherVertex) const {
+  std::set<uint32_t> output;
+  const auto &[v1, isIncoming] = otherVertex;
+  for (const auto &coord : Graph_::unwrap(isIncoming ? graph_.getEdge(v1, v0)
+                                                     : graph_.getEdge(v0, v1))
+                               .getValue()) {
+    output.emplace(coord.id);
+  }
+  return output;
 }
 }  // namespace stl3lasercut

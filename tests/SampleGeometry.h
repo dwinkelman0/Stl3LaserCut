@@ -36,5 +36,6 @@ extern std::vector<std::vector<Vec2>> tangentPositiveAndNegativeTriangles;
 extern std::vector<std::vector<Vec2>> sandwichedTriangles;
 extern std::vector<std::vector<Vec2>> doubleSandwichedTriangles;
 extern std::vector<std::vector<Vec2>> bubblePositiveAndNegativeTriangles;
+extern std::vector<std::vector<Vec2>> valley;
 }  // namespace samples
 }  // namespace stl3lasercut

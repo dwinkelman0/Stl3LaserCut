@@ -65,25 +65,42 @@ class TopologyPlaneTest : public TopologyPlaneBaseTest,
       : TopologyPlaneBaseTest(GetParam().points, "topology_" + GetParam().name,
                               GetParam().calculations),
         topologyPlane_(interferencePlane_),
-        root_(std::make_shared<TopologyNode>(topologyPlane_)) {}
+        root_(std::make_shared<TopologyPlane>(topologyPlane_)) {}
 
   void SetUp() override {
-    topologyPlane_.debug();
-    topologyPlane_.simplifyCycle();
-    topologyPlane_.debug();
+    // topologyPlane_.debug();
+    // topologyPlane_.simplifyCycle();
+    // topologyPlane_.debug();
   }
 
  protected:
   TopologyPlane topologyPlane_;
-  std::shared_ptr<TopologyNode> root_;
+  std::shared_ptr<TopologyPlane> root_;
 };
 
 TEST_P(TopologyPlaneTest, Basic) {}
 
 INSTANTIATE_TEST_SUITE_P(
     TopologyPlane, TopologyPlaneTest,
-    testing::Values(TopologyPlaneTestCase{
-        SAMPLE(acuteTriangle),
-        .calculations = offset::single(offset::constant(-1), true)}),
+    testing::Values(
+        TopologyPlaneTestCase{
+            SAMPLE(acuteTriangle),
+            .calculations = offset::single(offset::constant(-1), true)},
+        TopologyPlaneTestCase{
+            SAMPLE(obtuseTriangle),
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({-0.4, -0.8, -1.2})), true)},
+        TopologyPlaneTestCase{
+            SAMPLE(valley),
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({0.5, 0, 0.3, 1.3, 0})), true)},
+        TopologyPlaneTestCase{
+            SAMPLE(disjointTriangles),
+            .calculations = offset::single(offset::constant(-0.5), true)},
+        TopologyPlaneTestCase{
+            SAMPLE(bubbleNegativeTriangle),
+            .calculations = offset::single(
+                offset::ring(RingVector<float>({0, 0.4, 0, 0, 2, 0.6})),
+                true)}),
     testing::PrintToStringParamName());
 }  // namespace stl3lasercut

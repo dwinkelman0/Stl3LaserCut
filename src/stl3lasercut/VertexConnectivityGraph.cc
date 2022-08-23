@@ -238,6 +238,8 @@ MultiVertexConnectivityGraph::getBackwardReachablePoints(
   return getReachablePoints<false>(v0);
 }
 
+bool MultiVertexConnectivityGraph::isFullCircle() const { return fullCircle_; }
+
 MultiVertexConnectivityGraph::ExportSet
 MultiVertexConnectivityGraph::exportPoints() const {
   ExportSet output;

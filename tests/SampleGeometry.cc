@@ -160,5 +160,8 @@ std::vector<std::vector<Vec2>> bubblePositiveAndNegativeTriangles = {
     {{0, 0}, {8, 0}, {4, 8}},
     {{0, 0}, {4, 6}, {6, 2}},
     {{0, 0}, {4, 4}, {4, 2}}};
+
+std::vector<std::vector<Vec2>> valley = {
+    {{0, 0}, {6, 0}, {6, 4}, {3, 1}, {0, 4}}};
 }  // namespace samples
 }  // namespace stl3lasercut
