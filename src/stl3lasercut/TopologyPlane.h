@@ -42,6 +42,14 @@ class TopologyPlane {
         }
       }
 
+      void erase(const uint32_t vertex, const bool isIncoming) {
+        auto it = std::find(order_.begin(), order_.end(),
+                            std::pair<uint32_t, bool>(vertex, isIncoming));
+        if (it != order_.end()) {
+          order_.erase(it);
+        }
+      }
+
       const Order_ &getOrder() const { return order_; }
 
       bool getIsFullCircle() const { return fullCircle_; }
@@ -85,10 +93,19 @@ class TopologyPlane {
         std::set<EdgeCoordinate> edges;
       };
 
+      struct EdgeFixProposal_ {
+        uint32_t edgeId;
+        std::set<uint32_t> colors;
+        uint32_t numDecidableEdges;
+      };
+
       static std::shared_ptr<Component> create(
           const Graph_ &graph, const std::shared_ptr<uint32_t> &vertexCounter);
 
-      void merge();
+      std::shared_ptr<Component> merge();
+      std::optional<
+          std::pair<uint32_t, std::map<uint32_t, std::shared_ptr<Component>>>>
+      fixEdgeId();
 
       void debug() const;
 
@@ -97,15 +114,30 @@ class TopologyPlane {
                 const std::shared_ptr<uint32_t> &vertexCounter);
 
      private:
+      /** Determine whether two vertices are "topologically-equivalent" */
       bool canMerge(const uint32_t v0, const uint32_t v1) const;
+
+      /** Merge a pair of topologically-equivalent vertices into a new vertex to
+       * reduce number of possible topology-altering paths through the graph. */
       Merge_ merge(const uint32_t v0, const uint32_t v1);
-      std::set<uint32_t> getEdges(
+
+      std::set<std::pair<uint32_t, bool>> getEdgeIdsForEdge(
           const uint32_t v0,
           const std::pair<uint32_t, bool> &otherVertex) const;
+
+      /** Choose optimal edge to fix based on number of decidable edges. */
+      std::optional<EdgeFixProposal_> chooseEdgeToFix() const;
+
+      /** Remove all edges with the same edgeId but a different color. */
+      void fixEdgeId(const uint32_t edgeId, const uint32_t color);
+
+      void prune();
+      void eraseEdge(const uint32_t source, const uint32_t dest);
 
      private:
       Graph_ graph_;
       std::shared_ptr<uint32_t> vertexCounter_;
+      std::map<uint32_t, uint32_t> fixedEdges_;
     };
 
    public:
@@ -131,7 +163,6 @@ class TopologyPlane {
             renamedEdges;
         for (const InterferencePlane::Graph::ConstVertex &vertex :
              component.getVertices()) {
-          std::cout << vertex.getIndex() << std::endl;
           auto clusters = vertex.getValue().exportPoints();
           if (clusters.size() == 1) {
             output.emplaceVertex(
@@ -181,7 +212,17 @@ class TopologyPlane {
                 .first->getValue() = edge.getValue()->edges;
           }
         }
-        components_.push_back(Component::create(output, vertexCounter_));
+        auto newComponent = Component::create(output, vertexCounter_)->merge();
+        newComponent->debug();
+        auto fixedComponents = newComponent->fixEdgeId();
+        if (fixedComponents) {
+          for (const auto &[color, fixedComponent] : fixedComponents->second) {
+            std::cout << "Fix " << fixedComponents->first << " to " << color
+                      << ": " << std::endl;
+            fixedComponent->merge()->debug();
+          }
+        }
+        components_.push_back(newComponent);
       }
     }
 
@@ -195,7 +236,6 @@ class TopologyPlane {
  public:
   TopologyPlane(const InterferencePlane &interferencePlane) {
     auto graph = Graph::create(interferencePlane);
-    graph->debug();
   }
 };
 }  // namespace stl3lasercut

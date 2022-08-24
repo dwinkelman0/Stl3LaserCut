@@ -67,11 +67,7 @@ class TopologyPlaneTest : public TopologyPlaneBaseTest,
         topologyPlane_(interferencePlane_),
         root_(std::make_shared<TopologyPlane>(topologyPlane_)) {}
 
-  void SetUp() override {
-    // topologyPlane_.debug();
-    // topologyPlane_.simplifyCycle();
-    // topologyPlane_.debug();
-  }
+  void SetUp() override {}
 
  protected:
   TopologyPlane topologyPlane_;
